@@ -47,3 +47,12 @@ node_modules/
 .artifacts/
 release-for-website.sh
 
+_build
+# Ignore all __pycache__ directories
+__pycache__/
+*/__pycache__/
+**/__pycache__/
+
+# Also ignore Python compiled files
+*.py[cod]
+*$py.class
