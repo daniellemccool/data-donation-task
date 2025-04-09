@@ -45,5 +45,5 @@ node_modules/
 
 # Act artifacts
 .artifacts/
-
+release-for-website.sh
 

@@ -29,5 +29,6 @@
   },
   "dependencies": {
     "fdir": "6.5.0"
+    "typescript": "^5.8.3"
   }
 }
