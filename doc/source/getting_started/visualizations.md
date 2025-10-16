@@ -6,7 +6,7 @@ Good visualizations can help participants to see and explore what data they are 
 
 ## Adding visualizations to tables
 
-Visualizations are always directly connected to a **consent form table**. When in script.py you create a consent form table, you can implement visualizations as follows:
+Visualizations are always directly connected to a **consent form table**. When a script.py you create a consent form table, you can implement visualizations as follows:
 
 ```python
 table_title = props.Translatable({
@@ -14,7 +14,7 @@ table_title = props.Translatable({
     "nl": "Tabel titel"
 })
 
-table = props.PropsUIPromptConsentFormTable(
+table = d3i_props.PropsUIPromptConsentFormTableViz(
     id = "tableId",
     title = table_title,
     data_frame = df,
@@ -118,7 +118,7 @@ This creates a wordcloud of the full channel names. Note that we could also have
 Now that we have created visualizations, we can add them to the consent form table. Note that above we assigned our specifications to **vis1** to **vis4**. We can now simply add them to the visualiations list.
 
 ```python
-table = props.PropsUIPromptConsentFormTable(
+table = d3i_props.PropsUIPromptConsentFormTableViz(
     id = "tableId",
     title = table_title,
     data_frame = df,

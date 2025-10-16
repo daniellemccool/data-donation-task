@@ -1,7 +1,6 @@
-# Deployment of the data donation task
+# Data donation task in a study
 
 This article will discuss the option you have when using the data donation task in a data donation study. 
-The data donation task is designed to be used with Next.
 
 ## The data donation task with Next
 
@@ -87,7 +86,7 @@ Next is a free and open source tool and you could host it yourself. You can find
 
 After you have created your data donation task with this repository, you can use this task directly in Next. You can do this as follows:
 
-1. In the data donation task run the command `npm run release`, this creates a zip file named `release.zip`
+1. In the data donation task run the command `pnpm run release`, this creates a zip file named `release.zip`
 2. In Next when configuring your data donation study, go to work flow and create a new item task list item called data donation task
 3. In the newly created task list item select the `release.zip` you have just created
 

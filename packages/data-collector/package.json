@@ -6,6 +6,8 @@
   "homepage": ".",
   "dependencies": {
     "@eyra/feldspar": "workspace:*",
+    "d3-cloud": "^1.2.7",
+    "lodash": "4.17.21",
     "react": "19.1.1",
     "react-dom": "19.1.1"
   },
@@ -21,14 +23,11 @@
     "eslint-plugin-react-refresh": "^0.4.12",
     "globals": "^16.0.0",
     "postcss": "^8.5.4",
-    "tailwindcss": "^3.4.17",
-    "typescript": "^5.9.2",
-    "vite": "^7.0.0"
-    "@visx/responsive": "^3.12.0",
-    "@visx/text": "^3.12.0",
-    "@visx/wordcloud": "^3.12.0",
     "react-highlight-words": "^0.21.0",
     "recharts": "^2.15.2",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.9.2",
+    "vite": "^7.0.0",
     "zod": "^3.24.2"
   },
   "scripts": {
