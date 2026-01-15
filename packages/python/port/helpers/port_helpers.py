@@ -64,7 +64,7 @@ def generate_retry_prompt(platform_name: str) -> props.PropsUIPromptConfirm:
         }
     )
     ok = props.Translatable({"en": "Try again", "nl": "Opnieuw proberen", "es": "Intentar de nuevo"})
-    cancel = props.Translatable({"en": "", "nl": "Annuleen", "es": ""})
+    cancel = props.Translatable({"en": "", "nl": "", "es": ""})
     return props.PropsUIPromptConfirm(text, ok, cancel)
 
 
