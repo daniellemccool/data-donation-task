@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 import json
 import logging
 import zipfile
@@ -13,6 +14,30 @@ import port.donation_flows.youtube as youtube
 import port.helpers.port_helpers as ph
 from port.api import d3i_props
 
+
+class DataFrameHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self._data = []
+
+    def emit(self, record):
+        self._data.append(
+            {
+                "Level": record.levelname,
+                "Message": record.getMessage(),
+                "Timestamp": datetime.fromtimestamp(
+                    record.created, tz=timezone.utc
+                ).isoformat(),
+            }
+        )
+
+    @property
+    def df(self):
+        return pd.DataFrame(self._data)
+
+
+log_handler = DataFrameHandler()
+logging.basicConfig(handlers=[log_handler], level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -32,7 +57,7 @@ def process(session_id: int, platform: str | None):
         assert isinstance(platform, str)
 
     while True:
-        logger.info("Prompt for file for %s", platform)
+        logger.info(f"Prompt for file for {platform}")
 
         if platform.lower() in ("tiktok", "tt"):
             extensions_arg = "application/json, application/zip"
@@ -44,6 +69,8 @@ def process(session_id: int, platform: str | None):
 
         if file_result.__type__ == "PayloadString":
             is_data_valid = is_valid(file_result.value, platform)
+            logger.info(f"Received file {file_result.value}, valid={is_data_valid}")
+
             if is_data_valid:
                 # Good, proceed with donation
                 review_data_prompt = donation_flow([file_result.value], platform)
@@ -56,9 +83,11 @@ def process(session_id: int, platform: str | None):
                     review_data_prompt,
                 )
                 if result.__type__ == "PayloadJSON":
+                    logger.info(f"About to donate payload of size {len(result.value)}")
                     reviewed_data = result.value
                     yield ph.donate(f"{session_id}", reviewed_data)
                 elif result.__type__ == "PayloadFalse":
+                    logger.info("Permission declined in consent screen")
                     value = json.dumps('{"status" : "data_submission declined"}')
                     yield ph.donate(f"{session_id}", value)
 
@@ -70,16 +99,22 @@ def process(session_id: int, platform: str | None):
 
                 # The participant wants to retry: start from the beginning
                 if retry_prompt_result.__type__ == "PayloadTrue":
+                    logger.info("Retrying file selection")
                     continue
                 # The participant does not want to retry or pressed skip
                 # WvA: Since we removed the cancel button, this else is redundant?
                 else:
+                    logger.info(
+                        "Participant cancelled file re-selection. Note: This should never happen anymore"
+                    )
                     break
 
         else:
             logger.info("Skipped at file selection ending flow")
             break
 
+    log_json = log_handler.df.to_json(orient="records")
+    yield ph.donate(f"{session_id}-log", log_json)
     yield ph.exit(0, "Success")
 
 
@@ -97,7 +132,9 @@ def is_valid(file_input: str, platform: str) -> bool:
     raise ValueError(f"Unknown platform: {platform}")
 
 
-def donation_flow(file_input: list[str], platform: str) -> d3i_props.PropsUIPromptConsentFormViz | None:
+def donation_flow(
+    file_input: list[str], platform: str
+) -> d3i_props.PropsUIPromptConsentFormViz | None:
     if platform == "Instagram":
         return instagram.create_donation_flow(file_input)
     if platform == "Facebook":
