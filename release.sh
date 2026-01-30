@@ -7,7 +7,7 @@ mkdir -p releases/${TIMESTAMP}
 
 platforms=("Facebook" "Instagram" "Twitter" "Tiktok" "Youtube")
 for PLATFORM in "${platforms[@]}"; do
-    export REACT_APP_PLATFORM=$PLATFORM
+    export VITE_PLATFORM=$PLATFORM
     pnpm run build
     cd packages/data-collector/dist
     zip -r ../../../releases/${TIMESTAMP}/${PLATFORM}_${TIMESTAMP}.zip .

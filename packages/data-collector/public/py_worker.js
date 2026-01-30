@@ -13,7 +13,9 @@ onmessage = (event) => {
       break;
 
     case "firstRunCycle":
-      pyScript = self.pyodide.runPython(`port.start(${event.data.sessionId})`);
+      pyScript = self.pyodide.runPython(
+        `port.start(${event.data.sessionId},${event.data.platform})`,
+      );
       runCycle(null);
       break;
 
@@ -43,7 +45,7 @@ function runCycle(payload) {
 
 function unwrap(response) {
   console.log(
-    "[ProcessingWorker] unwrap response: " + JSON.stringify(response.payload)
+    "[ProcessingWorker] unwrap response: " + JSON.stringify(response.payload),
   );
   return new Promise((resolve) => {
     switch (response.payload.__type__) {
@@ -70,7 +72,7 @@ function copyFileToPyFS(file, resolve) {
     {
       files: [file],
     },
-    directoryName
+    directoryName,
   );
   resolve({
     __type__: "PayloadString",

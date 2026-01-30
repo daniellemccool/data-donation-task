@@ -81,7 +81,8 @@ export default class WorkerProcessingEngine {
   }
 
   firstRunCycle(): void {
-    const platform: string = import.meta.env.VITE_PLATFORM || "";
+    const meta: any = import.meta;
+    const platform = meta.env.VITE_PLATFORM;
     this.worker.postMessage({
       eventType: "firstRunCycle",
       sessionId: this.sessionId,
