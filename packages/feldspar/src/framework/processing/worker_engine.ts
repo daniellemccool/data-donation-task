@@ -1,7 +1,7 @@
-import { CommandHandler } from '../types/modules'
 import { CommandSystemEvent, isCommand, Response } from '../types/commands'
+import { CommandHandler } from '../types/modules'
 
-export default class WorkerProcessingEngine  {
+export default class WorkerProcessingEngine {
   sessionId: String
   worker: Worker
   commandHandler: CommandHandler
@@ -9,7 +9,7 @@ export default class WorkerProcessingEngine  {
   resolveInitialized!: () => void
   resolveContinue!: () => void
 
-  constructor (sessionId: string, worker: Worker, commandHandler: CommandHandler) {
+  constructor(sessionId: string, worker: Worker, commandHandler: CommandHandler) {
     this.sessionId = sessionId
     this.commandHandler = commandHandler
     this.worker = worker
@@ -23,15 +23,15 @@ export default class WorkerProcessingEngine  {
     }
   }
 
-  sendSystemEvent (name: string): void {
+  sendSystemEvent(name: string): void {
     const command: CommandSystemEvent = { __type__: 'CommandSystemEvent', name }
     this.commandHandler.onCommand(command).then(
-      () => {},
-      () => {}
+      () => { },
+      () => { }
     )
   }
 
-  handleEvent (event: any): void {
+  handleEvent(event: any): void {
     const { eventType } = event.data
     console.log('[ReactEngine] received eventType: ', eventType)
     switch (eventType) {
@@ -52,7 +52,7 @@ export default class WorkerProcessingEngine  {
     }
   }
 
-  start (): void {
+  start(): void {
     console.log('[WorkerProcessingEngine] started')
     const waitForInitialization: Promise<void> = this.waitForInitialization()
 
@@ -61,11 +61,11 @@ export default class WorkerProcessingEngine  {
         this.sendSystemEvent('initialized')
         this.firstRunCycle()
       },
-      () => {}
+      () => { }
     )
   }
 
-  async waitForInitialization (): Promise<void> {
+  async waitForInitialization(): Promise<void> {
     return await new Promise<void>((resolve) => {
       this.resolveInitialized = resolve
       console.debug('[WorkerProcessingEngine] waiting for initialisation')
@@ -73,26 +73,26 @@ export default class WorkerProcessingEngine  {
     })
   }
 
-  firstRunCycle (): void {
-    const platform: string = process.env.REACT_APP_PLATFORM || ""
+  firstRunCycle(): void {
+    const platform: string = import.meta.env.VITE_PLATFORM || ""
     this.worker.postMessage({ eventType: 'firstRunCycle', sessionId: this.sessionId, platform })
   }
 
-  nextRunCycle (response: Response): void {
+  nextRunCycle(response: Response): void {
     console.log('[WorkerProcessingEngine] nextRunCycle');
     this.worker.postMessage({ eventType: 'nextRunCycle', response })
   }
 
-  terminate (): void {
+  terminate(): void {
     this.worker.terminate()
   }
 
-  handleRunCycle (command: any): void {
+  handleRunCycle(command: any): void {
     if (isCommand(command)) {
       this.commandHandler.onCommand(command).then(
         (response) => this.nextRunCycle(response),
-        () => {}
+        () => { }
       )
-    } 
+    }
   }
 }
