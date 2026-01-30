@@ -1,98 +1,109 @@
-import { CommandSystemEvent, isCommand, Response } from '../types/commands'
-import { CommandHandler } from '../types/modules'
+import { CommandHandler } from "../types/modules";
+import { CommandSystemEvent, isCommand, Response } from "../types/commands";
 
 export default class WorkerProcessingEngine {
-  sessionId: String
-  worker: Worker
-  commandHandler: CommandHandler
+  sessionId: String;
+  worker: Worker;
+  commandHandler: CommandHandler;
 
-  resolveInitialized!: () => void
-  resolveContinue!: () => void
+  resolveInitialized!: () => void;
+  resolveContinue!: () => void;
 
-  constructor(sessionId: string, worker: Worker, commandHandler: CommandHandler) {
-    this.sessionId = sessionId
-    this.commandHandler = commandHandler
-    this.worker = worker
-    this.worker.onerror = console.log
+  constructor(
+    sessionId: string,
+    worker: Worker,
+    commandHandler: CommandHandler,
+  ) {
+    this.sessionId = sessionId;
+    this.commandHandler = commandHandler;
+    this.worker = worker;
+    this.worker.onerror = console.log;
     this.worker.onmessage = (event) => {
       console.log(
-        '[WorkerProcessingEngine] Received event from worker: ',
-        event.data.eventType
-      )
-      this.handleEvent(event)
-    }
+        "[WorkerProcessingEngine] Received event from worker: ",
+        event.data.eventType,
+      );
+      this.handleEvent(event);
+    };
   }
 
   sendSystemEvent(name: string): void {
-    const command: CommandSystemEvent = { __type__: 'CommandSystemEvent', name }
+    const command: CommandSystemEvent = {
+      __type__: "CommandSystemEvent",
+      name,
+    };
     this.commandHandler.onCommand(command).then(
-      () => { },
-      () => { }
-    )
+      () => {},
+      () => {},
+    );
   }
 
   handleEvent(event: any): void {
-    const { eventType } = event.data
-    console.log('[ReactEngine] received eventType: ', eventType)
+    const { eventType } = event.data;
+    console.log("[ReactEngine] received eventType: ", eventType);
     switch (eventType) {
-      case 'initialiseDone':
-        console.log('[ReactEngine] received: initialiseDone')
-        this.resolveInitialized()
-        break
+      case "initialiseDone":
+        console.log("[ReactEngine] received: initialiseDone");
+        this.resolveInitialized();
+        break;
 
-      case 'runCycleDone':
-        console.log('[ReactEngine] received: event', event.data.scriptEvent)
-        this.handleRunCycle(event.data.scriptEvent)
-        break
+      case "runCycleDone":
+        console.log("[ReactEngine] received: event", event.data.scriptEvent);
+        this.handleRunCycle(event.data.scriptEvent);
+        break;
       default:
         console.log(
-          '[ReactEngine] received unsupported flow event: ',
-          eventType
-        )
+          "[ReactEngine] received unsupported flow event: ",
+          eventType,
+        );
     }
   }
 
   start(): void {
-    console.log('[WorkerProcessingEngine] started')
-    const waitForInitialization: Promise<void> = this.waitForInitialization()
+    console.log("[WorkerProcessingEngine] started");
+    const waitForInitialization: Promise<void> = this.waitForInitialization();
 
     waitForInitialization.then(
       () => {
-        this.sendSystemEvent('initialized')
-        this.firstRunCycle()
+        this.sendSystemEvent("initialized");
+        this.firstRunCycle();
       },
-      () => { }
-    )
+      () => {},
+    );
   }
 
   async waitForInitialization(): Promise<void> {
     return await new Promise<void>((resolve) => {
-      this.resolveInitialized = resolve
-      console.debug('[WorkerProcessingEngine] waiting for initialisation')
-      this.worker.postMessage({ eventType: 'initialise' })
-    })
+      this.resolveInitialized = resolve;
+      console.debug("[WorkerProcessingEngine] waiting for initialisation");
+      this.worker.postMessage({ eventType: "initialise" });
+    });
   }
 
   firstRunCycle(): void {
-    const platform: string = import.meta.env.VITE_PLATFORM || ""
-    this.worker.postMessage({ eventType: 'firstRunCycle', sessionId: this.sessionId, platform })
+    const platform: string = import.meta.env.VITE_PLATFORM || "";
+    this.worker.postMessage({
+      eventType: "firstRunCycle",
+      sessionId: this.sessionId,
+      platform,
+    });
   }
 
   nextRunCycle(response: Response): void {
-    console.log('[WorkerProcessingEngine] nextRunCycle');
-    this.worker.postMessage({ eventType: 'nextRunCycle', response })
+    console.log("[WorkerProcessingEngine] nextRunCycle");
+    this.worker.postMessage({ eventType: "nextRunCycle", response });
   }
 
   terminate(): void {
-    this.worker.terminate()
+    this.worker.terminate();
   }
 
   handleRunCycle(command: any): void {
     if (isCommand(command)) {
       this.commandHandler.onCommand(command).then(
         (response) => this.nextRunCycle(response),
-        () => { }
-      )
+        () => {},
+      );
     }
   }
 }
