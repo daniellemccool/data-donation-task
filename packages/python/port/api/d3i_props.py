@@ -26,7 +26,7 @@ class PropsUIPromptConsentFormTableViz:
             {"column1": 2, "column2": 5},
             {"column1": 3, "column2": 6},
         ])
-
+        
         example1 = PropsUIPromptConsentFormTable(
             id="example1",
             title=Translatable("Table as DataFrame"),
@@ -38,7 +38,7 @@ class PropsUIPromptConsentFormTableViz:
             "column2": {"0": 2, "1": 5},
             "column3": {"0": 3, "1": 6},
         }
-
+        
         example2 = PropsUIPromptConsentFormTable(
             id="example2",
             title=Translatable("Table as Dictionary"),
@@ -245,8 +245,8 @@ class PropsUIPromptQuestionnaire:
     """
     description: props.Translatable
     questions: list[
-        PropsUIQuestionMultipleChoice |
-        PropsUIQuestionMultipleChoiceCheckbox |
+        PropsUIQuestionMultipleChoice | 
+        PropsUIQuestionMultipleChoiceCheckbox | 
         PropsUIQuestionOpen
     ]
 
@@ -261,4 +261,27 @@ class PropsUIPromptQuestionnaire:
         dict["__type__"] = "PropsUIPromptQuestionnaire"
         dict["description"] = self.description.toDict()
         dict["questions"] = [q.toDict() for q in self.questions]
+        return dict
+
+
+@dataclass
+class PropsUIPromptRetry:
+    """Retry submitting a file page
+
+    Prompt the user if they want to submit a new file.
+    This can be used in case a file could not be processed.
+
+    Attributes:
+        text: message to display
+        ok: message to display if the user wants to try again
+    """
+
+    text: props.Translatable
+    ok: props.Translatable
+
+    def toDict(self):
+        dict = {}
+        dict["__type__"] = "PropsUIPromptRetry"
+        dict["text"] = self.text.toDict()
+        dict["ok"] = self.ok.toDict()
         return dict

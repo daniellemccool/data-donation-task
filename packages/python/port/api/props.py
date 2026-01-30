@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Any, Optional, TypedDict, Union
+from typing import Optional, TypedDict, Union, Any
 
 import pandas as pd
 

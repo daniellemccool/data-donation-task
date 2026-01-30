@@ -10,7 +10,7 @@ onmessage = (event) => {
       break
 
     case 'firstRunCycle':
-      pyScript = self.pyodide.runPython(`port.start(${event.data.sessionId}, "${event.data.platform}")`)
+      pyScript = self.pyodide.runPython(`port.start(${event.data.sessionId})`)
       runCycle(null)
       break
 
@@ -109,13 +109,9 @@ function startPyodide() {
   })
 }
 
-async function loadPackages() {
+function loadPackages() {
   console.log('[ProcessingWorker] loading packages')
-  await self.pyodide.loadPackage(['micropip', 'numpy', 'pandas'])
-  return await self.pyodide.runPythonAsync(`
-    import micropip
-    await micropip.install("jsonpath-ng")
-  `);
+  return self.pyodide.loadPackage(['micropip', 'numpy', 'pandas'])
 }
 
 function installPortPackage() {
@@ -124,7 +120,7 @@ function installPortPackage() {
     import micropip
     await micropip.install("./port-0.0.0-py3-none-any.whl", deps=False)
     import port
-  `);
+  `);  
 }
 
 function generateErrorMessage(stacktrace) {
