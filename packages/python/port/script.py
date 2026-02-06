@@ -1,7 +1,6 @@
+from datetime import datetime
 import json
 import logging
-import zipfile
-from typing import Any, Generator, TypedDict
 
 import pandas as pd
 import port.api.props as props
@@ -13,6 +12,22 @@ import port.donation_flows.youtube as youtube
 import port.helpers.port_helpers as ph
 from port.api import d3i_props
 
+
+class DataFrameHandler(logging.Handler):
+    def __init__(self):
+        super().__init__()
+        self._data = []
+    def emit(self, record):
+        self._data.append({
+            "Level": record.levelname,
+            "Message": record.getMessage(),
+            "Timestamp": datetime.fromtimestamp(record.created).isoformat(),
+        })
+    @property
+    def df(self):
+        return pd.DataFrame(self._data)
+log_handler = DataFrameHandler()
+logging.basicConfig(handlers=[log_handler], level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -23,7 +38,6 @@ RETRY_HEADER = props.Translatable(
         "es": "Intente de nuevo",
     }
 )
-
 
 def process(session_id: int, platform: str | None):
     if platform is None or platform == "":
@@ -56,9 +70,11 @@ def process(session_id: int, platform: str | None):
                     review_data_prompt,
                 )
                 if result.__type__ == "PayloadJSON":
+                    logging.info(f"About to donate {len(result.value)} bytes")
                     reviewed_data = result.value
                     yield ph.donate(f"{session_id}", reviewed_data)
                 elif result.__type__ == "PayloadFalse":
+                    logging.info("Data submission declined by user")
                     value = json.dumps('{"status" : "data_submission declined"}')
                     yield ph.donate(f"{session_id}", value)
 
@@ -79,7 +95,8 @@ def process(session_id: int, platform: str | None):
         else:
             logger.info("Skipped at file selection ending flow")
             break
-
+    log_json = log_handler.df.to_json(orient="records")
+    yield ph.donate(f"{session_id}-log", log_json)
     yield ph.exit(0, "Success")
 
 

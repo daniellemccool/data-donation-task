@@ -276,19 +276,11 @@ def create_csv_table(file_input: list[str], entries: list[Entry]) -> pd.DataFram
             logging.warning(f"CSV not found: {entry.filename}")
             continue
 
-        logging.error(f"[CSV DEBUG] Raw headers: {[repr(c) for c in df.columns]}")
-
         expected_columns = list(entry.tree.columns.keys())
-
-        logging.error(f"[CSV DEBUG] Raw schema: {[repr(c) for c in expected_columns]}")
 
         existing_columns = [col for col in expected_columns if col in df.columns]
 
-        logging.error(f"[CSV DEBUG] Raw schema: {existing_columns}")
-
         df = df[existing_columns]
-
-        logging.error(f"[CSV DEBUG] Raw schema: {df}")
 
         all_tables.append(df)
 
