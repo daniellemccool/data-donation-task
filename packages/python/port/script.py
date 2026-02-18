@@ -1,11 +1,7 @@
-<<<<<<< HEAD
-from datetime import datetime, timezone
-=======
 import gzip
->>>>>>> test-upstream-merge
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 import pandas as pd
 import port.api.props as props
@@ -28,13 +24,7 @@ class DataFrameHandler(logging.Handler):
             {
                 "Level": record.levelname,
                 "Message": record.getMessage(),
-<<<<<<< HEAD
-                "Timestamp": datetime.fromtimestamp(
-                    record.created, tz=timezone.utc
-                ).isoformat(),
-=======
                 "Timestamp": datetime.fromtimestamp(record.created).isoformat(),
->>>>>>> test-upstream-merge
             }
         )
 
@@ -115,9 +105,7 @@ def process(session_id: int, platform: str | None):
                 # The participant does not want to retry or pressed skip
                 # WvA: Since we removed the cancel button, this else is redundant?
                 else:
-                    logger.info(
-                        "Participant cancelled file re-selection. Note: This should never happen anymore"
-                    )
+                    logger.info("Participant cancelled file re-selection. Note: This should never happen anymore")
                     break
 
         else:
@@ -142,9 +130,7 @@ def is_valid(file_input: str, platform: str) -> bool:
     raise ValueError(f"Unknown platform: {platform}")
 
 
-def donation_flow(
-    file_input: list[str], platform: str
-) -> d3i_props.PropsUIPromptConsentFormViz | None:
+def donation_flow(file_input: list[str], platform: str) -> d3i_props.PropsUIPromptConsentFormViz | None:
     if platform == "Instagram":
         return instagram.create_donation_flow(file_input)
     if platform == "Facebook":
