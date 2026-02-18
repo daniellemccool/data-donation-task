@@ -1,6 +1,7 @@
 from collections.abc import Generator
-from port.script import process
+
 from port.api.commands import CommandSystemExit
+from port.script import process
 
 
 class ScriptWrapper(Generator):

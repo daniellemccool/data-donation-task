@@ -10,9 +10,7 @@ from typing import Annotated, Any, Iterable, NamedTuple, TypeAlias
 import pandas as pd
 from port.helpers.readers import read_csv, read_js, read_json
 
-JsonPath: TypeAlias = Annotated[
-    tuple[str, ...], "A tuple correspondiong to a json path to find values"
-]
+JsonPath: TypeAlias = Annotated[tuple[str, ...], "A tuple correspondiong to a json path to find values"]
 JsonKey: TypeAlias = str
 
 Columns: TypeAlias = Annotated[
@@ -103,9 +101,7 @@ def read_file(file_input: list[str], filename: str | None):
         # This is for tiktok. The file can be either a single json file or a zip with a json inside
         if file_input[0].endswith(".zip"):
             with zipfile.ZipFile(file_input[0], "r") as zip_ref:
-                json_files = [
-                    name for name in zip_ref.namelist() if name.endswith(".json")
-                ]
+                json_files = [name for name in zip_ref.namelist() if name.endswith(".json")]
                 if len(json_files) == 0:
                     raise FileNotFoundError("No JSON file found in the ZIP archive.")
                 elif len(json_files) > 1:
@@ -129,9 +125,7 @@ def read_file(file_input: list[str], filename: str | None):
 
 
 def read_pattern(file_input: list[str], filename: str):
-    pattern = re.compile(
-        re.escape(filename).replace(r"\$USERNAME", r"([^/]+_)?\d{10,}")
-    )
+    pattern = re.compile(re.escape(filename).replace(r"\$USERNAME", r"([^/]+_)?\d{10,}"))
     with zipfile.ZipFile(file_input[0], "r") as zip_ref:
         for file in zip_ref.namelist():
             if pattern.match(file):
@@ -180,18 +174,14 @@ def extract_rows(item, node: Node, context=None, path_prefix=()):
             if isinstance(sub_item, list):
                 if sub_item:  # only if non-empty
                     for element in sub_item:
-                        rows += extract_rows(
-                            element, sub_tree, context=base, path_prefix=new_prefix
-                        )
+                        rows += extract_rows(element, sub_tree, context=base, path_prefix=new_prefix)
                         any_child_rows = True
                 else:
                     # list exists but empty — do not block parent emission
                     base[".".join(new_prefix)] = []
             elif isinstance(sub_item, dict):
                 if sub_item:
-                    rows += extract_rows(
-                        sub_item, sub_tree, context=base, path_prefix=new_prefix
-                    )
+                    rows += extract_rows(sub_item, sub_tree, context=base, path_prefix=new_prefix)
                     any_child_rows = True
                 else:
                     base[".".join(new_prefix)] = {}
@@ -203,9 +193,7 @@ def extract_rows(item, node: Node, context=None, path_prefix=()):
     return rows
 
 
-def create_entry_df(
-    file_input: list[str], entry: Entry, json_root: str | None = None
-) -> pd.DataFrame | None:
+def create_entry_df(file_input: list[str], entry: Entry, json_root: str | None = None) -> pd.DataFrame | None:
     """Create a dataframe for a single entry."""
     try:
         data = read_file(file_input, entry.filename)
@@ -236,12 +224,8 @@ def create_entry_df(
     return pd.DataFrame(all_records)
 
 
-def create_table(
-    file_input: list[str], entries: list[Entry], json_root: str | None = None
-) -> pd.DataFrame:
-    tables = [
-        create_entry_df(file_input, entry, json_root=json_root) for entry in entries
-    ]
+def create_table(file_input: list[str], entries: list[Entry], json_root: str | None = None) -> pd.DataFrame:
+    tables = [create_entry_df(file_input, entry, json_root=json_root) for entry in entries]
     tables = [t for t in tables if t is not None]
     if not tables:
         return pd.DataFrame()

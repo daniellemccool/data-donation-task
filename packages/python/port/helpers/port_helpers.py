@@ -40,32 +40,33 @@ def render_page(
     return CommandUIRender(page)
 
 
-def generate_retry_prompt(platform_name: str) -> props.PropsUIPromptConfirm:
+def generate_retry_prompt(platform_name: str) -> d3i_props.PropsUIPromptRetry:
     """
-    Generates a confirmation prompt for retrying file processing.
+    Generate a bilingual retry prompt for file processing errors.
 
-    This function creates a bilingual (English and Dutch) confirmation prompt
-    when a file from a specific platform cannot be processed. It allows the user
-    to either try again with a different file or continue with the current file.
+    This function returns a bilingual (English and Dutch) retry prompt
+    when a file from a specific platform cannot be processed. It informs
+    the user that the file could not be processed and provides the option
+    to try again with a different file.
 
     Args:
         platform_name (str): The name of the platform associated with the file
-            that couldn't be processed. This is inserted into the prompt text.
+            that could not be processed. This name is inserted into the prompt text.
 
     Returns:
-        props.PropsUIPromptConfirm: A confirmation prompt object containing
-        the message, and labels for the "OK" (try again) and "Cancel" (continue) buttons.
+        d3i_props.PropsUIPromptRetry: A retry prompt object containing
+        the message text and the label for the "Try again" button.
     """
+
     text = props.Translatable(
         {
-            "en": f"Unfortunately, we cannot process your {platform_name} file. Try again to select a different file",
-            "nl": f"Helaas, kunnen we uw {platform_name} bestand niet verwerken. Probeer het opnieuw als u een ander bestand wilt kiezen",
+            "en": f"Unfortunately, we cannot process your {platform_name} file. Continue, if you are sure that you selected the right file. Try again to select a different file.",
+            "nl": f"Helaas, kunnen we uw {platform_name} bestand niet verwerken. Weet u zeker dat u het juiste bestand heeft gekozen? Ga dan verder. Probeer opnieuw als u een ander bestand wilt kiezen.",
             "es": f"Lamentablemente, no podemos procesar su archivo de {platform_name}. Intente de nuevo para seleccionar un archivo diferente",
         }
     )
-    ok = props.Translatable({"en": "Try again", "nl": "Opnieuw proberen", "es": "Intentar de nuevo"})
-    cancel = props.Translatable({"en": "", "nl": "", "es": ""})
-    return props.PropsUIPromptConfirm(text, ok, cancel)
+    ok = props.Translatable({"en": "Try again", "nl": "Probeer opnieuw", "es": "Intentar de nuevo"})
+    return d3i_props.PropsUIPromptRetry(text, ok)
 
 
 def generate_file_prompt(
@@ -210,10 +211,7 @@ def generate_questionnaire() -> d3i_props.PropsUIPromptQuestionnaire:
     )
 
     mc_question = props.Translatable(
-        translations={
-            "en": "How would you rate your overall experience?",
-            "nl": "Hoe zou u uw algemene ervaring beoordelen?",
-        }
+        translations={"en": "How would you rate your overall experience?", "nl": "Hoe zou u uw algemene ervaring beoordelen?"}
     )
 
     mc_choices = [
@@ -248,6 +246,5 @@ def generate_questionnaire() -> d3i_props.PropsUIPromptQuestionnaire:
     )
 
     return d3i_props.PropsUIPromptQuestionnaire(
-        description=questionnaire_description,
-        questions=[multiple_choice_question, checkbox_question_obj, open_ended_question],
+        description=questionnaire_description, questions=[multiple_choice_question, checkbox_question_obj, open_ended_question]
     )

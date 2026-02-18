@@ -1,8 +1,11 @@
+<<<<<<< HEAD
 from datetime import datetime, timezone
+=======
+import gzip
+>>>>>>> test-upstream-merge
 import json
 import logging
-import zipfile
-from typing import Any, Generator, TypedDict
+from datetime import datetime
 
 import pandas as pd
 import port.api.props as props
@@ -25,9 +28,13 @@ class DataFrameHandler(logging.Handler):
             {
                 "Level": record.levelname,
                 "Message": record.getMessage(),
+<<<<<<< HEAD
                 "Timestamp": datetime.fromtimestamp(
                     record.created, tz=timezone.utc
                 ).isoformat(),
+=======
+                "Timestamp": datetime.fromtimestamp(record.created).isoformat(),
+>>>>>>> test-upstream-merge
             }
         )
 
@@ -83,11 +90,15 @@ def process(session_id: int, platform: str | None):
                     review_data_prompt,
                 )
                 if result.__type__ == "PayloadJSON":
-                    logger.info(f"About to donate payload of size {len(result.value)}")
-                    reviewed_data = result.value
-                    yield ph.donate(f"{session_id}", reviewed_data)
+                    data = result.value
+                    if False:  # Disable zipping for now
+                        data = gzip.compress(data.encode("utf-8")).decode("latin-1")
+                        logging.info(f"Zipped {len(result.value)} bytes into {len(data)} bytes")
+                    logging.info(f"About to upload {len(data)} bytes")
+
+                    yield ph.donate(f"{session_id}", data)
                 elif result.__type__ == "PayloadFalse":
-                    logger.info("Permission declined in consent screen")
+                    logging.info("Data submission declined by user")
                     value = json.dumps('{"status" : "data_submission declined"}')
                     yield ph.donate(f"{session_id}", value)
 
@@ -112,7 +123,6 @@ def process(session_id: int, platform: str | None):
         else:
             logger.info("Skipped at file selection ending flow")
             break
-
     log_json = log_handler.df.to_json(orient="records")
     yield ph.donate(f"{session_id}-log", log_json)
     yield ph.exit(0, "Success")
