@@ -7,7 +7,7 @@ export interface Table {
   title: Text
   data: any
 }
-export function isTable (arg: any): arg is Table {
+export function isTable(arg: any): arg is Table {
   return isInstanceOf<Table>(arg, 'Table', ['id', 'title', 'data'])
 }
 
@@ -16,7 +16,7 @@ export interface Response {
   command: Command
   payload: Payload
 }
-export function isResponse (arg: any): arg is Response {
+export function isResponse(arg: any): arg is Response {
   return isInstanceOf<Response>(arg, 'Response', ['command', 'payload']) && isCommand(arg.command)
 }
 
@@ -43,7 +43,8 @@ export type PayloadResolved =
   PayloadTrue |
   PayloadString |
   PayloadFile |
-  PayloadJSON
+  PayloadJSON |
+  PayloadResponse
 
 export interface PayloadVoid {
   __type__: 'PayloadVoid'
@@ -69,15 +70,25 @@ export interface PayloadJSON {
   __type__: 'PayloadJSON'
   value: string
 }
-export function isPayloadJSON (arg: any): arg is PayloadJSON {
+export function isPayloadJSON(arg: any): arg is PayloadJSON {
   return isInstanceOf<PayloadJSON>(arg, 'PayloadJSON', ['value'])
+}
+
+export interface PayloadResponse {
+  __type__: 'PayloadResponse'
+  value: {
+    success: boolean
+    key: string
+    status: number
+    error?: string
+  }
 }
 
 export type Command =
   CommandUI |
   CommandSystem
 
-export function isCommand (arg: any): arg is Command {
+export function isCommand(arg: any): arg is Command {
   return isCommandUI(arg) || isCommandSystem(arg)
 }
 
@@ -86,7 +97,7 @@ export type CommandSystem =
   CommandSystemEvent |
   CommandSystemExit
 
-export function isCommandSystem (arg: any): arg is CommandSystem {
+export function isCommandSystem(arg: any): arg is CommandSystem {
   return isCommandSystemDonate(arg) || isCommandSystemEvent(arg) || isCommandSystemExit(arg)
 }
 
@@ -94,7 +105,7 @@ export interface CommandSystemEvent {
   __type__: 'CommandSystemEvent'
   name: string
 }
-export function isCommandSystemEvent (arg: any): arg is CommandSystemEvent {
+export function isCommandSystemEvent(arg: any): arg is CommandSystemEvent {
   return isInstanceOf<CommandSystemEvent>(arg, 'CommandSystemEvent', ['name'])
 }
 
@@ -103,14 +114,14 @@ export interface CommandSystemExit {
   code: number
   info: string
 }
-export function isCommandSystemExit (arg: any): arg is CommandSystemExit {
+export function isCommandSystemExit(arg: any): arg is CommandSystemExit {
   return isInstanceOf<CommandSystemExit>(arg, 'CommandSystemExit', ['code', 'info'])
 }
 
 export type CommandUI =
   CommandUIRender
 
-export function isCommandUI (arg: any): arg is CommandUI {
+export function isCommandUI(arg: any): arg is CommandUI {
   return isCommandUIRender(arg)
 }
 
@@ -119,7 +130,7 @@ export interface CommandSystemDonate {
   key: string
   json_string: string
 }
-export function isCommandSystemDonate (arg: any): arg is CommandSystemDonate {
+export function isCommandSystemDonate(arg: any): arg is CommandSystemDonate {
   return isInstanceOf<CommandSystemDonate>(arg, 'CommandSystemDonate', ['key', 'json_string'])
 }
 
@@ -127,6 +138,6 @@ export interface CommandUIRender {
   __type__: 'CommandUIRender'
   page: PropsUIPage
 }
-export function isCommandUIRender (arg: any): arg is CommandUIRender {
+export function isCommandUIRender(arg: any): arg is CommandUIRender {
   return isInstanceOf<CommandUIRender>(arg, 'CommandUIRender', ['page']) && isPropsUIPage(arg.page)
 }

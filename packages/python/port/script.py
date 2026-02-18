@@ -12,6 +12,7 @@ import port.donation_flows.twitter as twitter
 import port.donation_flows.youtube as youtube
 import port.helpers.port_helpers as ph
 from port.api import d3i_props
+from port.api.commands import CommandUIRender
 
 
 class DataFrameHandler(logging.Handler):
@@ -48,7 +49,7 @@ RETRY_HEADER = props.Translatable(
 
 
 def process(session_id: int, platform: str | None):
-    if platform is None or platform == "":
+    if platform is None or platform == "" or platform == "undefined":
         p = yield ask_platform()
         platform = p.value
         assert isinstance(platform, str)
@@ -79,19 +80,35 @@ def process(session_id: int, platform: str | None):
                     platform_data_header(platform),
                     review_data_prompt,
                 )
+                logging.info(f"Received result from donation flow: {result.__type__}")
                 if result.__type__ == "PayloadJSON":
                     data = result.value
-                    if False:  # Disable zipping for now
-                        data = gzip.compress(data.encode("utf-8")).decode("latin-1")
-                        logging.info(f"Zipped {len(result.value)} bytes into {len(data)} bytes")
-                    logging.info(f"About to upload {len(data)} bytes")
+                    # Disable zipping for now
+                    #    data = gzip.compress(data.encode("utf-8")).decode("latin-1")
+                    #    logging.info(f"Zipped {len(result.value)} bytes into {len(data)} bytes")
+                    logging.info(f"About to donate: {len(data)} bytes")
+                    yield ph.donate(f"{session_id}-log1", log_handler.df.to_json(orient="records"))
 
-                    yield ph.donate(f"{session_id}", data)
+                    donate_result = yield ph.donate(f"{session_id}", data)
+
+                    logging.info(f"Received result from donation: {donate_result.__type__}")
+                    yield ph.donate(f"{session_id}-log2", log_handler.df.to_json(orient="records"))
+
+                    if donate_result.__type__ == "PayloadResponse":
+                        logging.info(f"Donation success: {donate_result.value.success}")
+                        logging.info(f"Donation result: {donate_result.value}")
+                        if not donate_result.value.success:
+                            error_msg = getattr(donate_result.value, "error", "Unknown error")
+                            yield render_error_page(error_msg)
+
                 elif result.__type__ == "PayloadFalse":
                     logging.info("Data submission declined by user")
-                    value = json.dumps('{"status" : "data_submission declined"}')
-                    yield ph.donate(f"{session_id}", value)
-
+                    data = json.dumps('{"status" : "data_submission declined"}')
+                    donate_result = yield ph.donate(f"{session_id}", data)
+                    if donate_result.__type__ == "PayloadResponse":
+                        if not donate_result.value.success:
+                            error_msg = getattr(donate_result.value, "error", "Unknown error")
+                            yield render_error_page(error_msg)
                 break
             else:
                 # Invalid file, allow retry
@@ -114,6 +131,18 @@ def process(session_id: int, platform: str | None):
     log_json = log_handler.df.to_json(orient="records")
     yield ph.donate(f"{session_id}-log", log_json)
     yield ph.exit(0, "Success")
+
+
+def render_error_page(error_message):
+    """Render an error page when donation fails"""
+    page = props.PropsUIPageError(message=error_message)
+    return CommandUIRender(page)
+
+
+def render_error_page(error_message):
+    """Render an error page when donation fails"""
+    page = props.PropsUIPageError(message=error_message)
+    return CommandUIRender(page)
 
 
 def is_valid(file_input: str, platform: str) -> bool:

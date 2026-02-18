@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Optional, TypedDict, Union, Any
+from typing import Any, Optional, TypedDict, Union
 
 import pandas as pd
 
@@ -334,4 +334,17 @@ class PropsUIPageEnd:
     def toDict(self):
         dict = {}
         dict["__type__"] = "PropsUIPageEnd"
+        return dict
+
+
+@dataclass
+class PropsUIPageError:
+    """An error page to show when something goes wrong"""
+
+    message: str
+
+    def toDict(self):
+        dict = {}
+        dict["__type__"] = "PropsUIPageError"
+        dict["message"] = self.message
         return dict

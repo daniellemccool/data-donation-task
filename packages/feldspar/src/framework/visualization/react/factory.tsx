@@ -1,10 +1,10 @@
-import { PropsUIPage } from "../../types/pages";
-import { Payload } from "../../types/commands";
-import { PageFactory } from "./factories/base";
-import { EndPageFactory } from "./factories/end_page";
-import { DataSubmissionPageFactory } from "./factories/data_submission_page";
 import { JSX } from "react";
-import React from "react";
+import { Payload } from "../../types/commands";
+import { PropsUIPage } from "../../types/pages";
+import { PageFactory } from "./factories/base";
+import { DataSubmissionPageFactory } from "./factories/data_submission_page";
+import { EndPageFactory } from "./factories/end_page";
+import { ErrorPageFactory } from "./factories/error_page";
 
 export interface ReactFactoryContext {
   locale: string;
@@ -18,6 +18,7 @@ export default class ReactFactory {
     this.factories = [
       ...initialFactories,
       new EndPageFactory(),
+      new ErrorPageFactory(),
       new DataSubmissionPageFactory(),
     ];
   }
