@@ -43,7 +43,8 @@ export type PayloadResolved =
   PayloadTrue |
   PayloadString |
   PayloadFile |
-  PayloadJSON
+  PayloadJSON |
+  PayloadResponse
 
 export interface PayloadVoid {
   __type__: 'PayloadVoid'
@@ -71,6 +72,15 @@ export interface PayloadJSON {
 }
 export function isPayloadJSON (arg: any): arg is PayloadJSON {
   return isInstanceOf<PayloadJSON>(arg, 'PayloadJSON', ['value'])
+}
+
+// Wraps a ResponseSystemDonate so Python can inspect the donation outcome.
+// Named PayloadResponse in eyra/feldspar PR #612 commit 94ed016 "Rename
+// PayloadResponseSystemDonate to PayloadResponse" (Feb 2 2026). Adopted by
+// what-if-horizon in commit 0020453 "wait for donation result (based on PR 612)".
+export interface PayloadResponse {
+  __type__: 'PayloadResponse'
+  value: import('./modules').ResponseSystemDonate
 }
 
 export type Command =
