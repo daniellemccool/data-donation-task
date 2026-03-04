@@ -1,6 +1,9 @@
 from collections.abc import Generator
-from port.d3i_example_script import process
+# from port.d3i_example_script import process
+from port.uu_facebook_crime_script import process
+from port.script import process as process_example
 from port.api.commands import CommandSystemExit
+from port.api.file_utils import AsyncFileAdapter
 
 
 class ScriptWrapper(Generator):
@@ -8,6 +11,10 @@ class ScriptWrapper(Generator):
         self.script = script
 
     def send(self, data):
+        # Automatically wrap JS file readers with AsyncFileAdapter
+        if data and getattr(data, '__type__') == "PayloadFile":
+            data.value = AsyncFileAdapter(data.value)
+
         try:
             command = self.script.send(data)
         except StopIteration:
@@ -21,4 +28,9 @@ class ScriptWrapper(Generator):
 
 def start(sessionId):
     script = process(sessionId)
+    return ScriptWrapper(script)
+
+
+def start_example(sessionId):
+    script = process_example(sessionId)
     return ScriptWrapper(script)
