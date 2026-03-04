@@ -38,6 +38,22 @@ If the installation went correctly you should be greeted with a mock data donati
 For detailed installation instructions see the [documentation](https://d3i-infra.github.io/data-donation-task/).
 
 
+## Deployment configuration
+
+The workflow supports two host platforms, selected via an environment variable in `packages/data-collector/.env.local` (copy from `.env.example`):
+
+| Variable | Value | Use with |
+|---|---|---|
+| `VITE_ASYNC_DONATIONS` | unset or `false` | D3I's self-hosted mono (default) |
+| `VITE_ASYNC_DONATIONS` | `true` | Eyra's hosted Next platform |
+
+**D3I mono (default):** donations are fire-and-forget — the workflow posts data and continues immediately. No `.env.local` needed.
+
+**Eyra mono:** as of January 2026, Eyra's platform stores donations via HTTP POST and sends back a `DonateSuccess` or `DonateError` reply over a MessageChannel. Setting `VITE_ASYNC_DONATIONS=true` enables the workflow to await that reply. Python receives the outcome as a structured response (success, HTTP status, optional error message).
+
+See `packages/data-collector/.env.example` for details.
+
+
 ## Contributing
 
 We want to make contributing to this project as easy and transparent as possible, whether it's:
