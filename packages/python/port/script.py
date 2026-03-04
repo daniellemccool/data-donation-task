@@ -139,12 +139,6 @@ def render_error_page(error_message):
     return CommandUIRender(page)
 
 
-def render_error_page(error_message):
-    """Render an error page when donation fails"""
-    page = props.PropsUIPageError(message=error_message)
-    return CommandUIRender(page)
-
-
 def is_valid(file_input: str, platform: str) -> bool:
     if platform == "Instagram":
         return instagram.is_data_valid(file_input)
