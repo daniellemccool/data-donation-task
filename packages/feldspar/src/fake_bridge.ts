@@ -1,5 +1,6 @@
-import { CommandSystem, CommandSystemDonate, CommandSystemExit, isCommandSystemDonate, isCommandSystemExit } from './framework/types/commands'
+import { CommandSystem, CommandSystemDonate, CommandSystemExit, isCommandSystemDonate, isCommandSystemExit, isCommandSystemLog } from './framework/types/commands'
 import { Bridge, ResponseSystemDonate } from './framework/types/modules'
+import { LogEntry } from './framework/logging'
 
 // Updated to match the async Bridge interface introduced in eyra/feldspar PR #612
 // (draft, feature/live_error_handling) and adopted by what-if-horizon in commit
@@ -11,6 +12,8 @@ export default class FakeBridge implements Bridge {
       return this.handleDataSubmission(command)
     } else if (isCommandSystemExit(command)) {
       this.handleExit(command)
+    } else if (isCommandSystemLog(command)) {
+      console.log('[FakeBridge] received log command: ' + JSON.stringify(command))
     } else {
       console.log('[FakeBridge] received unknown command: ' + JSON.stringify(command))
     }
@@ -42,5 +45,16 @@ export default class FakeBridge implements Bridge {
 
   handleExit (command: CommandSystemExit): void {
     console.log(`[FakeBridge] received exit: ${command.code}=${command.info}`)
+  }
+
+  sendLogs (entries: LogEntry[]): void {
+    entries.forEach(entry => {
+      console.log(`[FakeBridge] Sending CommandSystemLog:`, {
+        __type__: 'CommandSystemLog',
+        level: entry.level,
+        message: entry.message,
+        json_string: JSON.stringify({ level: entry.level, message: entry.message }),
+      })
+    })
   }
 }

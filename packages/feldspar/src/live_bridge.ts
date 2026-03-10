@@ -1,5 +1,6 @@
 import { CommandSystem, isCommandSystem, isCommandSystemDonate } from './framework/types/commands'
 import { Bridge, ResponseSystemDonate } from './framework/types/modules'
+import { LogEntry } from './framework/logging'
 
 // When VITE_ASYNC_DONATIONS=true, the bridge awaits DonateSuccess/DonateError
 // responses from the host (Eyra's new mono, which POSTs donations via HTTP and
@@ -139,6 +140,17 @@ export class LiveBridge implements Bridge {
           LiveBridge.currentBridge.updatePort(newPort)
         }
       }
+    })
+  }
+
+  sendLogs (entries: LogEntry[]): void {
+    entries.forEach(entry => {
+      this.port.postMessage({
+        __type__: 'CommandSystemLog',
+        level: entry.level,
+        message: entry.message,
+        json_string: JSON.stringify({ level: entry.level, message: entry.message }),
+      })
     })
   }
 
