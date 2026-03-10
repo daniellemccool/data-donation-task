@@ -11,6 +11,7 @@ function App() {
       <ScriptHostComponent
         workerUrl="./py_worker.js"
         standalone={import.meta.env.DEV}
+        logLevel={import.meta.env.DEV ? "debug" : "info"}
         factories={[
           new DataSubmissionPageFactory({
             promptFactories: [
