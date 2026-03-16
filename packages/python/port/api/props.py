@@ -346,3 +346,16 @@ class PropsUIPageEnd:
         dict = {}
         dict["__type__"] = "PropsUIPageEnd"
         return dict
+
+
+@dataclass
+class PropsUIPageError:
+    """An error page to show when something goes wrong"""
+
+    message: str
+
+    def toDict(self):
+        dict = {}
+        dict["__type__"] = "PropsUIPageError"
+        dict["message"] = self.message
+        return dict
