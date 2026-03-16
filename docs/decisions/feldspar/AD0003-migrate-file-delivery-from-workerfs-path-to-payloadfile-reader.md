@@ -4,6 +4,9 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-16 14:57:59"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-16 15:14:32"
 links:
     precedes: []
     succeeds: []
@@ -61,15 +64,4 @@ Complexity budget: The worker is a ~150-line JS file. Adding too much abstractio
 
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-16 14:57:59) Danielle McCool: More Information:
-See feldspar/AD0002 for the bridge abstraction that PayloadFile responses flow through.
-
-Related files:
-- packages/data-collector/public/py_worker.js — current worker (PayloadFile only)
-- packages/data-collector/public/d3i_py_worker.js — old worker (WORKERFS, dead code)
-- packages/python/port/script.py — standard script expecting PayloadString
-- packages/feldspar/src/framework/processing/worker_engine.ts — worker engine
-
-Context:
-- Task 8 of the eyra/feldspar integration switched App.tsx from d3i_py_worker.js to py_worker.js, introducing the incompatibility
-- Phase 6 (platform script modernization) was planned to port scripts to PayloadFile
+<a name="comment-2"></a>2. (2026-03-16 15:14:32) Danielle McCool: Current state (2026-03-16): Implementation follows Option 4 (capability flag via VITE_PAYLOAD_FILE env var). Default is WORKERFS/PayloadString for backwards compatibility. VITE_PAYLOAD_FILE=true enables PayloadFile. This repo's standard script.py has been updated to handle PayloadFile. Decision remains open — should be re-evaluated once researcher forks have had time to migrate and the deprecation path is further along.
