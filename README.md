@@ -5,10 +5,29 @@ Next is a software as a service platform developed by [Eyra](https://eyra.co/) t
 
 ## Documentation
 
-Here you can find the [documentation](https://d3i-infra.github.io/data-donation-task/) of this repository and tutorial articles to get you going.
+Because we are extracting fields from five platforms in five different languages, we decided to introduce a declarative 'Entry' to represent a table to be extracted.
+Each entry represents a tree of fields to be extracted from a target json structure and converted into a tabular form.
+See [parsers.py](https://github.com/what-if-horizon/what-if-data-donation/blob/master/packages/python/port/helpers/parsers.py) for the Entry class definition
+and especially the `extract_rows` method that is responsible for extracting the tabular values from the json tree.
+All platforms are essentially thin wrappers around a call to that function for each entry.
+
+Entries are generated automatically and placed in [entries_data.py](https://github.com/what-if-horizon/what-if-data-donation/blob/master/packages/python/port/helpers/entries_data.py).
+For an overview of the generation process, see the [workflow documentation](https://github.com/what-if-horizon/what-if-data-donation/blob/master/workflow_data_donation_tool.md).
+
+There are also limited unit/integration tests, especially a number of [scenarios](https://github.com/what-if-horizon/what-if-data-donation/tree/master/pytests/scenarios)
+based on completely anonymized [public test files](https://github.com/what-if-horizon/what-if-data-donation/tree/master/pytests/public_testfiles). To run the tests:
+
+```{sh}
+python -m venv .venv
+.venv/bin/pip install -e.[dev]
+.venv/bin/pytest
+```
+
+Note: This repository is based on the [original data donation repository published by d3i](https://github.com/d3i-infra/data-donation-task).
+Please see that repository, and especially their [documentation](https://d3i-infra.github.io/data-donation-task/) for general information about the data donation task and software.
 
 
-## Installation of the data donation task
+## Installation and local testing
 
 In order to start a local instance of the data donation task go through the following steps:
 
@@ -16,17 +35,16 @@ In order to start a local instance of the data donation task go through the foll
 
    - Fork or clone this repo
    - Install [Node.js](https://nodejs.org/en)
-   - Install [pnpm](https://pnpm.io/installation)
-   - Install [Python](https://www.python.org/) (Version 3.11 or higher)
+   - Install [Python](https://www.python.org/)
    - Install [Poetry](https://python-poetry.org/)
 
-1. Install dependencies:
+1. Install dependencies & tools:
 
    ```sh
    pnpm install
    ```
 
-2. Run the project locally with hot reloading (builds Python package and starts the development server):
+2. Start the local web server:
 
    ```sh
    pnpm run start
@@ -34,55 +52,8 @@ In order to start a local instance of the data donation task go through the foll
 
 3. You can now go to the browser: [`http://localhost:3000`](http://localhost:3000).
 
-If the installation went correctly you should be greeted with a mock data donation study. 
-For detailed installation instructions see the [documentation](https://d3i-infra.github.io/data-donation-task/).
+If the installation went correctly you should be greeted with a mock data donation study.
 
+## Building the release files
 
-## Deployment configuration
-
-The workflow supports two host platforms, selected via an environment variable in `packages/data-collector/.env.local` (copy from `.env.example`):
-
-| Variable | Value | Use with |
-|---|---|---|
-| `VITE_ASYNC_DONATIONS` | unset or `false` | D3I's self-hosted mono (default) |
-| `VITE_ASYNC_DONATIONS` | `true` | Eyra's hosted Next platform |
-
-**D3I mono (default):** donations are fire-and-forget — the workflow posts data and continues immediately. No `.env.local` needed.
-
-**Eyra mono:** as of January 2026, Eyra's platform stores donations via HTTP POST and sends back a `DonateSuccess` or `DonateError` reply over a MessageChannel. Setting `VITE_ASYNC_DONATIONS=true` enables the workflow to await that reply. Python receives the outcome as a structured response (success, HTTP status, optional error message).
-
-See `packages/data-collector/.env.example` for details.
-
-
-## Contributing
-
-We want to make contributing to this project as easy and transparent as possible, whether it's:
-
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
-
-If you have any questions, find any bugs, or have any ideas, read how to contribute [here](https://github.com/eyra/port/blob/master/CONTRIBUTING.md).
-
-
-## Citation
-
-If you use this repository in your research, please cite it as follows:
-
-```
-@article{Boeschoten2023,
-  doi = {10.21105/joss.05596},
-  url = {https://doi.org/10.21105/joss.05596},
-  year = {2023},
-  publisher = {The Open Journal},
-  volume = {8},
-  number = {90},
-  pages = {5596},
-  author = {Laura Boeschoten and Niek C. de Schipper and Adriënne M. Mendrik and Emiel van der Veen and Bella Struminskaya and Heleen Janssen and Theo Araujo},
-  title = {Port: A software tool for digital data donation},
-  journal = {Journal of Open Source Software}
-}
-```
-
-You can find the full citation details in the [`CITATION.cff`](CITATION.cff) file.
+After installing the dependencies as above, run `npm run release` to build a release file for each platform.

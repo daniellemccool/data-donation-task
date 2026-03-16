@@ -1,0 +1,34 @@
+{
+    "input_file": "pytests/public_testfiles/FB_public_test_file.zip",
+    "platform": "facebook",
+    "expected_output": [
+        {
+            "id": "Other Categories Used To Reach You",
+            "data_frame": {
+                "columns": [
+                    "fbid",
+                    "ent_name",
+                    "label_values.label",
+                    "label_values.ent_field_name",
+                    "label_values.vec.value"
+                ],
+                "data": [
+                    [
+                        "1",
+                        null,
+                        "Name",
+                        null,
+                        "bsc"
+                    ],
+                    [
+                        "1",
+                        null,
+                        "Name",
+                        null,
+                        "bsc"
+                    ]
+                ]
+            }
+        }
+    ]
+}

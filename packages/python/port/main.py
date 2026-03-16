@@ -1,6 +1,7 @@
 from collections.abc import Generator
-from port.d3i_example_script import process
+
 from port.api.commands import CommandSystemExit
+from port.script import process
 
 
 class ScriptWrapper(Generator):
@@ -19,6 +20,6 @@ class ScriptWrapper(Generator):
         raise StopIteration
 
 
-def start(sessionId):
-    script = process(sessionId)
+def start(sessionId, platform=None):
+    script = process(sessionId, platform)
     return ScriptWrapper(script)
