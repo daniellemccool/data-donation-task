@@ -1,30 +1,41 @@
-import { CommandHandler } from "../types/modules";
-import { CommandSystemEvent, isCommand, Response } from "../types/commands";
+import { CommandHandler } from '../types/modules'
+import { CommandSystemEvent, isCommand, Response } from '../types/commands'
+import { Logger } from '../logging'
 
 export default class WorkerProcessingEngine {
-  sessionId: String;
-  worker: Worker;
-  commandHandler: CommandHandler;
+  sessionId: String
+  worker: Worker
+  commandHandler: CommandHandler
+  logger?: Logger
 
   resolveInitialized!: () => void;
   resolveContinue!: () => void;
 
-  constructor(
+  constructor (
     sessionId: string,
     worker: Worker,
     commandHandler: CommandHandler,
+    logger?: Logger
   ) {
-    this.sessionId = sessionId;
-    this.commandHandler = commandHandler;
-    this.worker = worker;
-    this.worker.onerror = console.log;
+    this.sessionId = sessionId
+    this.commandHandler = commandHandler
+    this.worker = worker
+    this.logger = logger
+    this.initWorkerEventHandlers()
+  }
+
+  private initWorkerEventHandlers (): void {
     this.worker.onmessage = (event) => {
-      console.log(
-        "[WorkerProcessingEngine] Received event from worker: ",
-        event.data.eventType,
-      );
-      this.handleEvent(event);
-    };
+      this.logger?.log('debug', `Received event from worker: ${event.data.eventType}`)
+      this.handleEvent(event)
+    }
+    this.worker.onerror = (error) => {
+      this.logger?.log('error', `Worker error: ${error.message}`, {
+        filename: error.filename,
+        lineno: error.lineno,
+        colno: error.colno,
+      })
+    }
   }
 
   sendSystemEvent(name: string): void {
@@ -38,30 +49,37 @@ export default class WorkerProcessingEngine {
     );
   }
 
-  handleEvent(event: any): void {
-    const { eventType } = event.data;
-    console.log("[ReactEngine] received eventType: ", eventType);
+  handleEvent (event: any): void {
+    const { eventType } = event.data
     switch (eventType) {
-      case "initialiseDone":
-        console.log("[ReactEngine] received: initialiseDone");
-        this.resolveInitialized();
-        break;
+      case 'initialiseDone':
+        this.logger?.log('debug', 'Worker initialisation done')
+        this.resolveInitialized()
+        break
 
-      case "runCycleDone":
-        console.log("[ReactEngine] received: event", event.data.scriptEvent);
-        this.handleRunCycle(event.data.scriptEvent);
-        break;
+      case 'runCycleDone':
+        this.logger?.log('debug', 'Worker run cycle done')
+        this.handleRunCycle(event.data.scriptEvent)
+        // Flush after each run cycle so logs are delivered to the host before
+        // the next user interaction. Errors auto-flush in LogForwarder.
+        this.logger?.flush()
+        break
+
+      case 'error':
+        this.logger?.log('error', `Python error: ${event.data.error}`, { stack: event.data.stack })
+        // error-level log auto-flushes inside LogForwarder; explicit flush
+        // here ensures delivery even if the logger is replaced or overridden.
+        this.logger?.flush()
+        break
+
       default:
-        console.log(
-          "[ReactEngine] received unsupported flow event: ",
-          eventType,
-        );
+        this.logger?.log('warn', `Received unsupported worker event: ${eventType}`)
     }
   }
 
-  start(): void {
-    console.log("[WorkerProcessingEngine] started");
-    const waitForInitialization: Promise<void> = this.waitForInitialization();
+  start (): void {
+    this.logger?.log('debug', 'Worker started')
+    const waitForInitialization: Promise<void> = this.waitForInitialization()
 
     waitForInitialization.then(
       () => {
@@ -74,10 +92,10 @@ export default class WorkerProcessingEngine {
 
   async waitForInitialization(): Promise<void> {
     return await new Promise<void>((resolve) => {
-      this.resolveInitialized = resolve;
-      console.debug("[WorkerProcessingEngine] waiting for initialisation");
-      this.worker.postMessage({ eventType: "initialise" });
-    });
+      this.resolveInitialized = resolve
+      this.logger?.log('debug', 'Waiting for worker initialisation')
+      this.worker.postMessage({ eventType: 'initialise' })
+    })
   }
 
   firstRunCycle(): void {
@@ -90,9 +108,8 @@ export default class WorkerProcessingEngine {
     });
   }
 
-  nextRunCycle(response: Response): void {
-    console.log("[WorkerProcessingEngine] nextRunCycle");
-    this.worker.postMessage({ eventType: "nextRunCycle", response });
+  nextRunCycle (response: Response): void {
+    this.worker.postMessage({ eventType: 'nextRunCycle', response })
   }
 
   terminate(): void {
@@ -103,8 +120,8 @@ export default class WorkerProcessingEngine {
     if (isCommand(command)) {
       this.commandHandler.onCommand(command).then(
         (response) => this.nextRunCycle(response),
-        () => {},
-      );
+        () => {}
+      )
     }
   }
 }

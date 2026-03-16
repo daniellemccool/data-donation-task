@@ -1,4 +1,5 @@
 import { Command, CommandSystem, Response } from './commands'
+import { LogEntry } from '../logging'
 
 // Structured result returned by the host after processing a CommandSystemDonate.
 // Introduced by eyra/mono commit f1395c378 (Jan 20 2026) / eyra/feldspar PR #612
@@ -16,6 +17,7 @@ export interface ResponseSystemDonate {
 // (D3I's mono, backwards-compatible default). Pattern from eyra/feldspar PR #612.
 export interface Bridge {
   send: (command: CommandSystem) => Promise<ResponseSystemDonate | void>
+  sendLogs: (entries: LogEntry[]) => void
 }
 
 export interface CommandHandler {
