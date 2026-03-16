@@ -63,6 +63,11 @@ formal ADRs (using `write-adr` skill) as each feature is integrated.
 ### Release workflow: eyra vs d3i
 - **Decision**: TBD — whether to adopt eyra's GitHub Actions release workflow, keep d3i's
   per-platform release.sh, or combine both
+- **Current state**: d3i uses local `release.sh` (per-platform VITE_PLATFORM loop) +
+  `gh-pages.yml` CI deploy. Eyra's 9-commit release workflow (858cda49 + follow-ups)
+  was reviewed during integration but not ported — it targets their single-build
+  milestone/develop/main model. Dependency verification (check-deps.sh) was ported
+  independently.
 - **Context**: eyra has CI-driven releases (milestone/* branches → artifacts); d3i/dd-vu-2026
   has local `release.sh` with VITE_PLATFORM loop
 - **Model**: `fork-governance`
