@@ -1,1 +1,82 @@
-decisions: {}
+decisions:
+    "0001":
+        adr_id: "0001"
+        title: Layered Python architecture with unidirectional dependencies
+        status: accepted
+        tags:
+            - layering
+            - structure
+            - imports
+        links:
+            precedes:
+                - "0002"
+                - "0003"
+            succeeds:
+                - "0005"
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:33:16"
+              comment: "1"
+    "0002":
+        adr_id: "0002"
+        title: No cross-layer private imports
+        status: accepted
+        tags:
+            - imports
+            - encapsulation
+            - coupling
+        links:
+            precedes: []
+            succeeds:
+                - "0001"
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:33:16"
+              comment: "1"
+    "0003":
+        adr_id: "0003"
+        title: All UI page construction through port_helpers
+        status: accepted
+        tags:
+            - ui-construction
+            - helpers
+            - script
+        links:
+            precedes: []
+            succeeds:
+                - "0001"
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:33:16"
+              comment: "1"
+    "0004":
+        adr_id: "0004"
+        title: Separate upstream props from D3I-custom props
+        status: accepted
+        tags:
+            - props
+            - upstream-alignment
+            - types
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:33:17"
+              comment: "1"
+    "0005":
+        adr_id: "0005"
+        title: Python generator protocol for workflow orchestration
+        status: accepted
+        tags:
+            - generator
+            - bridge
+            - orchestration
+        links:
+            precedes:
+                - "0001"
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:33:17"
+              comment: "1"

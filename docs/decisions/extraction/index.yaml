@@ -1,1 +1,48 @@
-decisions: {}
+decisions:
+    "0001":
+        adr_id: "0001"
+        title: FlowBuilder template for per-platform extraction flows
+        status: accepted
+        tags:
+            - flowbuilder
+            - platform-structure
+            - template-method
+        links:
+            precedes: []
+            succeeds:
+                - "0002"
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:41:17"
+              comment: "1"
+    "0002":
+        adr_id: "0002"
+        title: Validation before extraction using DDP_CATEGORIES
+        status: accepted
+        tags:
+            - validation
+            - ddp-categories
+            - fail-fast
+        links:
+            precedes:
+                - "0001"
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:41:49"
+              comment: "1"
+    "0003":
+        adr_id: "0003"
+        title: Dutch column names in consent UI
+        status: accepted
+        tags:
+            - column-naming
+            - consent-ui
+            - dutch
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:41:56"
+              comment: "1"

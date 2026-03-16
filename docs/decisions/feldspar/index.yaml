@@ -1,1 +1,31 @@
-decisions: {}
+decisions:
+    "0001":
+        adr_id: "0001"
+        title: Factory pattern for UI extensibility
+        status: accepted
+        tags:
+            - factory
+            - extensibility
+            - rendering
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:30:02"
+              comment: "1"
+    "0002":
+        adr_id: "0002"
+        title: Bridge abstraction with swappable implementations
+        status: accepted
+        tags:
+            - bridge
+            - iframe
+            - postmessage
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-13 13:30:02"
+              comment: "1"
