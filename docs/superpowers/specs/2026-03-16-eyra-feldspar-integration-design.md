@@ -71,10 +71,10 @@ These touch only `packages/feldspar/` (or root docs) and should apply cleanly.
 
 | # | Feature | Eyra commit(s) | Date | Scope |
 |---|---------|----------------|------|-------|
-| 1 | Font: Finador → Nunito | `5eccca12` + `68b488b3` + `fd2c8e41` | Dec 2025 | 32 font files removed, 3 added; tailwind.config.js + fonts.css |
+| 1 | Font: Finador → Nunito | `fd2c8e41` + `5eccca12` + `68b488b3` | Dec 2025 | Apply in topology order: `fd2c8e41` relocates fonts to `src/framework/fonts/`, `5eccca12` replaces Finador with Nunito, `68b488b3` tunes weights. Also update `data-collector/tailwind.config.js` (has 18 Finador refs). |
 | 2 | Search case-insensitive fix | `ea959135` | Jan 2026 | 2-line change in table.tsx |
 | 3 | Button spinner alignment | `e6289437` | Feb 2026 | Layout fix in button.tsx |
-| 4 | LT/RO translations | `096dcae4` + `8cd1cd87` | Feb 2026 | New translation files |
+| 4 | LT/RO translations | `8cd1cd87` (UI only) | Feb 2026 | Feldspar UI translation files. **Note:** `096dcae4` modifies `packages/python/port/script.py` and `script_custom_ui.py` (cross-package) — deferred to Phase 6 alongside `df3a8999`. |
 | 5 | DISCLAIMER.md | `bb456ec3` | Feb 2026 | New root file |
 | 6 | Tailwind CSS v4 migration | `eb621b17` + `f30774c0` + `6cc392c4` + `26c6030c` | Feb 2026 | PostCSS config, styles.css, 12 component files. Apply in branch order (topology), not author-date order. Includes postcss v8.5.8 update (`26c6030c`) as prerequisite. |
 | 7 | Status text during submission | `189879f8` (#672) | Mar 2026 | donate_buttons.tsx — "Transferring data..." text while spinning |
