@@ -80,3 +80,19 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-13 13:33:17"
               comment: "1"
+    "0006":
+        adr_id: "0006"
+        title: Consolidate donation_flows and platforms into single extraction architecture
+        status: open
+        tags:
+            - extraction
+            - flowbuilder
+            - consolidation
+            - donation-flows
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-16 17:27:31"
+              comment: "1"
