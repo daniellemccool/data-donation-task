@@ -61,13 +61,7 @@ formal ADRs (using `write-adr` skill) as each feature is integrated.
 - **Model**: `fork-governance`
 
 ### Release workflow: eyra vs d3i
-- **Decision**: TBD — whether to adopt eyra's GitHub Actions release workflow, keep d3i's
-  per-platform release.sh, or combine both
-- **Current state**: d3i uses local `release.sh` (per-platform VITE_PLATFORM loop) +
-  `gh-pages.yml` CI deploy. Eyra's 9-commit release workflow (858cda49 + follow-ups)
-  was reviewed during integration but not ported — it targets their single-build
-  milestone/develop/main model. Dependency verification (check-deps.sh) was ported
-  independently.
-- **Context**: eyra has CI-driven releases (milestone/* branches → artifacts); d3i/dd-vu-2026
-  has local `release.sh` with VITE_PLATFORM loop
-- **Model**: `fork-governance`
+- **Decision**: Decided — see `testing/AD0003`. Remove broken Earthly release workflows
+  (_build_release.yml + release.yml), keep local release.sh. d3i-infra is a template repo;
+  automated release CI would produce artifacts nobody deploys. gh-pages.yml validates the build.
+- **Model**: `testing`

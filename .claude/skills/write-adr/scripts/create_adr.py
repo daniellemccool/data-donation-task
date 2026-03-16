@@ -66,7 +66,10 @@ def main() -> None:
     options = spec["options"]
 
     # 1. Create the decision stub
-    output = run(["adg", "add", "--model", model, "--title", title])
+    # adg uses Go StringSlice for --title, which splits on commas.
+    # Replace commas with dashes to avoid creating multiple decisions.
+    safe_title = title.replace(",", " —")
+    output = run(["adg", "add", "--model", model, "--title", safe_title])
     print(output)
 
     m = re.search(r"\((\d+)\)", output)
