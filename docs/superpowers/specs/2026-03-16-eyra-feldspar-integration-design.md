@@ -21,9 +21,14 @@ eyra PR #663 (logging). dd-vu-2026 is essentially current with eyra/develop at t
 
 **Note**: eyra/master is unused; eyra/develop is the production branch.
 
-Since `ed629b54`, eyra/develop has gained 5 non-chore commits: logging PR #663 (already in
-dd-vu-2026 via cherry-pick), workflow cleanup, status text during submission (#672),
-dependency verification, and the Milestone 7 bundle merge.
+Since `ed629b54`, eyra/develop has gained these non-chore commits:
+
+- `1dd29685` — logging PR #663 (already in dd-vu-2026 via cherry-pick) → Phase 2 #11
+- `37c2c892` — remove unused _build_release.yml → Phase 4 #12
+- `189879f8` — status text during submission (#672) → Phase 1 #7
+- `d3c715d2` + `10cbf186` — dependency verification → Phase 4 #13
+- `01e1387b` — Milestone 7 (merge commit on eyra/master bundling the above; not
+  cherry-picked directly since its constituents are tracked individually)
 
 ## Approach: Hybrid cherry-pick (Approach C)
 
