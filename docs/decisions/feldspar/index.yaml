@@ -32,7 +32,7 @@ decisions:
     "0003":
         adr_id: "0003"
         title: Migrate file delivery from WORKERFS path to PayloadFile reader
-        status: open
+        status: decided
         tags:
             - worker-protocol
             - file-delivery
@@ -47,3 +47,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-16 15:14:32"
               comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-16 16:28:00"
+              comment: "3"
+            - author: Danielle McCool
+              date: "2026-03-16 16:28:08"
+              comment: "4"

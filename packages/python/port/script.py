@@ -64,13 +64,26 @@ def process(session_id: int, platform: str | None):
         file_prompt = ph.generate_file_prompt(extensions_arg)
         file_result = yield ph.render_page(platform_file_header(platform), file_prompt)
 
-        if file_result.__type__ == "PayloadString":
-            is_data_valid = is_valid(file_result.value, platform)
-            logger.info(f"Received file {file_result.value}, valid={is_data_valid}")
+        if file_result.__type__ in ("PayloadString", "PayloadFile"):
+            if file_result.__type__ == "PayloadFile":
+                # PayloadFile: value is an AsyncFileAdapter (file-like).
+                # Materialize to /tmp so existing helpers can use path-based zipfile.
+                adapter = file_result.value
+                file_path = f"/tmp/{adapter.name}"
+                with open(file_path, "wb") as f:
+                    f.write(adapter.read())
+                adapter.seek(0)
+                logger.info(f"PayloadFile: wrote {adapter.size} bytes to {file_path}")
+            else:
+                # PayloadString: value is a WORKERFS filesystem path
+                file_path = file_result.value
+
+            is_data_valid = is_valid(file_path, platform)
+            logger.info(f"Received file {file_path}, valid={is_data_valid}")
 
             if is_data_valid:
                 # Good, proceed with donation
-                review_data_prompt = donation_flow([file_result.value], platform)
+                review_data_prompt = donation_flow([file_path], platform)
                 # WvA I think donation flow should just never return None instead?
                 if not review_data_prompt:
                     logger.info("No donation flow received")

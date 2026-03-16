@@ -102,9 +102,7 @@ function createAsyncFileReader(file) {
 }
 
 function copyFileToPyFS(file, resolve) {
-  // Create a file reader and pass it directly to Python
   const reader = createAsyncFileReader(file);
-
   resolve({
     __type__: "PayloadFile",
     value: reader,

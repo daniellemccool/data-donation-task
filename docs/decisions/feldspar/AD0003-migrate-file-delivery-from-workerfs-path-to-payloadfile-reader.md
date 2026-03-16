@@ -7,10 +7,16 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-16 15:14:32"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-16 16:28:00"
+    - author: Danielle McCool
+      comment: "4"
+      date: "2026-03-16 16:28:08"
 links:
     precedes: []
     succeeds: []
-status: open
+status: decided
 tags:
     - worker-protocol
     - file-delivery
@@ -63,5 +69,8 @@ Complexity budget: The worker is a ~150-line JS file. Adding too much abstractio
 * Neutral, because adds a capability negotiation mechanism to the worker
 
 
+## <a name="outcome"></a> Decision Outcome
+We decided for [Option 2](#option-2) because: PayloadFile does not cross the feldspar-mono boundary (postMessage bridge) — it is entirely internal to the iframe worker. Platform scripts (linkedin.py, twitter.py, etc.) are unaffected because script.py materializes the AsyncFileAdapter to a temp file path before calling them. Only script.py needs a small PayloadFile branch, making the migration trivial. The WORKERFS fallback and env var switch added complexity without meaningful benefit, since no boundary or deployment constraint requires the old protocol. Aligning with eyra upstream on PayloadFile-only eliminates dual-protocol maintenance.
+
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-16 15:14:32) Danielle McCool: Current state (2026-03-16): Implementation follows Option 4 (capability flag via VITE_PAYLOAD_FILE env var). Default is WORKERFS/PayloadString for backwards compatibility. VITE_PAYLOAD_FILE=true enables PayloadFile. This repo's standard script.py has been updated to handle PayloadFile. Decision remains open — should be re-evaluated once researcher forks have had time to migrate and the deprecation path is further along.
+<a name="comment-4"></a>4. (2026-03-16 16:28:08) Danielle McCool: Implementation (2026-03-16): py_worker.js always sends PayloadFile via createAsyncFileReader. main.py ScriptWrapper wraps the JS reader with AsyncFileAdapter (file-like object with read/seek/tell). script.py handles both PayloadFile (materializes to /tmp via adapter.read()) and PayloadString (legacy path) so it works regardless of worker version. Platform scripts receive a path string either way — no changes needed. WORKERFS codepath and VITE_PAYLOAD_FILE env var removed.
