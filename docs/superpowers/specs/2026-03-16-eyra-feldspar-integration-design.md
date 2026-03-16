@@ -11,13 +11,19 @@ Three repos are involved:
 
 | Repo | Role |
 |------|------|
-| `eyra/feldspar` (develop @ `ed629b54`) | Upstream source of framework changes |
+| `eyra/feldspar` (develop is production) | Upstream source of framework changes |
 | `d3i-infra/data-donation-task` (master) | Target for eventual PRs; base for this fork |
 | `daniellemccool/dd-vu-2026` (master) | Study fork that has already integrated most eyra changes |
 
 The merge-base between this fork's master and eyra is `a4240aff` (very old, pre-monorepo
 restructure). dd-vu-2026 synced to eyra/develop at `ed629b54` and additionally cherry-picked
-eyra PR #663 (logging). dd-vu-2026 is essentially current with eyra/develop.
+eyra PR #663 (logging). dd-vu-2026 is essentially current with eyra/develop at that point.
+
+**Note**: eyra/master is unused; eyra/develop is the production branch.
+
+Since `ed629b54`, eyra/develop has gained 5 non-chore commits: logging PR #663 (already in
+dd-vu-2026 via cherry-pick), workflow cleanup, status text during submission (#672),
+dependency verification, and the Milestone 7 bundle merge.
 
 ## Approach: Hybrid cherry-pick (Approach C)
 
@@ -31,13 +37,26 @@ eyra PR #663 (logging). dd-vu-2026 is essentially current with eyra/develop.
   eyra's example scripts.
 
 **Each feature** gets its own branch and merge commit. Commit messages reference the eyra
-source commit hash for traceability. Ordering is chronological by eyra commit date.
+source commit hash for traceability.
+
+**Ordering**: Broadly chronological by eyra commit date. Within a single feature group
+(e.g. Tailwind v4's 3 commits), branch topology takes precedence over author timestamps
+— some commits were reordered via rebase upstream.
+
+**Phases are ordered by type** (pure feldspar before cross-package), not strict chronology.
+PayloadFile (`0b2a8c9f`, Nov 2025) predates the font change (Dec 2025) but appears in
+Phase 2 because it requires d3i adaptation.
 
 **Verification**: After all features are integrated, diff `packages/feldspar/` between this
 fork and dd-vu-2026 to catch anything missed.
 
 **ADR capture**: Decision points identified during integration are noted in
 `docs/decisions/adr-todo.md` and written as formal ADRs afterwards.
+
+**Failure strategy**: Each feature gets its own branch. If a cherry-pick causes significant
+conflicts or test failures, the branch can be abandoned and revisited later. The
+verification gate (Phase 3) catches anything skipped. Features within a phase are
+independent unless noted.
 
 ## Feature Sequence
 
@@ -52,7 +71,8 @@ These touch only `packages/feldspar/` (or root docs) and should apply cleanly.
 | 3 | Button spinner alignment | `e6289437` | Feb 2026 | Layout fix in button.tsx |
 | 4 | LT/RO translations | `096dcae4` + `8cd1cd87` | Feb 2026 | New translation files |
 | 5 | DISCLAIMER.md | `bb456ec3` | Feb 2026 | New root file |
-| 6 | Tailwind CSS v4 migration | `eb621b17` + `f30774c0` + `6cc392c4` | Feb 2026 | PostCSS config, styles.css, 12 component files |
+| 6 | Tailwind CSS v4 migration | `eb621b17` + `f30774c0` + `6cc392c4` + `26c6030c` | Feb 2026 | PostCSS config, styles.css, 12 component files. Apply in branch order (topology), not author-date order. Includes postcss v8.5.8 update (`26c6030c`) as prerequisite. |
+| 7 | Status text during submission | `189879f8` (#672) | Mar 2026 | donate_buttons.tsx — "Transferring data..." text while spinning |
 
 ### Phase 2: Cross-package features (from dd-vu-2026)
 
@@ -60,10 +80,15 @@ These require d3i adaptation. Source from dd-vu-2026's proven integration.
 
 | # | Feature | Eyra source | dd-vu-2026 source | Key files |
 |---|---------|-------------|-------------------|-----------|
-| 7 | PayloadFile / sync file reader | `0b2a8c9f` (#482) | `525b70c` + `075c934` | py_worker.js, file_utils.py, main.py, script.py |
-| 8 | Dataframe size limits | `bd7bf248` | `525b70c` | consent_table.tsx, props.py, script.py |
-| 9 | Truncation tests + utility | `fd16e34e` | `525b70c` | truncation.ts, truncation.test.ts, jest.config.js, test_dataframe_truncation.py |
-| 10 | Log forwarder + monitor protocol | `1dd29685` (#663) | `a48be83` (11 commits) | logging.ts, commands.ts/py, assembly.ts, worker_engine.ts, live_bridge.ts, main.py, script.py, App.tsx |
+| 8 | PayloadFile / sync file reader | `0b2a8c9f` (#482) | `525b70c` + `075c934` | py_worker.js, file_utils.py, main.py, script.py |
+| 9 | Dataframe size limits | `bd7bf248` | `525b70c` | consent_table.tsx, props.py, script.py |
+| 10 | Truncation tests + utility | `fd16e34e` | `525b70c` | truncation.ts, truncation.test.ts, jest.config.js, test_dataframe_truncation.py |
+| 11 | Log forwarder + monitor protocol | `1dd29685` (#663) | `a48be83` (11 commits) | logging.ts, commands.ts/py, assembly.ts, worker_engine.ts, live_bridge.ts, main.py, script.py, App.tsx |
+
+**Note on donate helper** (`df3a8999`): This eyra commit adds a `donate()` helper and debug
+tracking event to `script.py`. Since d3i has its own `script.py` with different donation
+logic, this is deferred to Phase 6 (platform script modernization) where d3i's scripts
+are updated holistically.
 
 ### Phase 3: Feldspar verification gate
 
@@ -72,11 +97,13 @@ anything missed by the per-feature integration.
 
 ### Phase 4: Remaining eyra/develop changes
 
-| # | Feature | Eyra commit | Notes |
-|---|---------|-------------|-------|
-| 11 | Remove unused _build_release.yml | `37c2c892` | Trivial file deletion |
-| 12 | CI workflow + permissions | `858cda49` + `447016d7` + related | May need d3i adaptation |
-| 13 | postcss dep update | `26c6030c` | May be needed for Tailwind v4 |
+| # | Feature | Eyra commit(s) | Notes |
+|---|---------|----------------|-------|
+| 12 | Remove unused _build_release.yml | `37c2c892` | Trivial file deletion |
+| 13 | Dependency verification | `d3c715d2` + `10cbf186` | check-deps.sh, release.sh updates. May need adaptation for d3i's release process. |
+| 14 | CI: release workflow | `858cda49` + `fc30ef44` + `504fbe25` + `3f672ead` + `1124e4d7` + `048346bc` + `239c5876` + `84e32328` + `a6e1ad34` | Base workflow + 8 follow-up fixes (branch triggers, tag format, artifact naming, pre-commit hooks, GitHub Release creation). |
+| 15 | CI: dependency-updates workflow | `76ed7890` + `328777be` + `9eaf9473` | CI for Renovate/Dependabot PRs |
+| 16 | CI: permissions + cleanup | `447016d7` + `943393fc` + `1790c52e` + `40ffd24c` | Workflow permissions, remove redundant playwright.yml, E2E LFS checkout, test zip LFS files |
 
 ### Phase 5: Mono compatibility audit
 
@@ -88,6 +115,7 @@ predefined set of commits.
 
 Separate planning cycle. Bring d3i-infra/master's standard platform scripts forward
 using dd-vu-2026's VU 2026 migration as reference. Requires both versions visible.
+Includes the donate helper (`df3a8999`) disposition.
 
 ## ADR Capture
 
@@ -104,7 +132,7 @@ Decision points identified from the eyra features are tracked in
 
 ## Completion Criteria
 
-1. All features integrated via individual branches/PRs onto d3i-infra/master base
+1. All features (phases 1-4) integrated via individual branches/PRs onto d3i-infra/master base
 2. Feldspar verification gate passes (diff against dd-vu-2026 shows no gaps)
 3. Mono compatibility audit complete
 4. `adr-todo.md` entries enriched with integration context
