@@ -1,4 +1,9 @@
 #!/bin/bash
+set -e
+
+# Check prerequisites
+./check-deps.sh release
+
 export NODE_ENV=production
 
 mkdir -p releases
