@@ -17,7 +17,7 @@ import port.api.props as props
 import port.api.d3i_props as d3i_props
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
     DDPCategory,
