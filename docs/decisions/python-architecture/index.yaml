@@ -92,7 +92,7 @@ decisions:
     "0006":
         adr_id: "0006"
         title: Consolidate donation_flows and platforms into single extraction architecture
-        status: accepted
+        status: decided
         tags:
             - extraction
             - flowbuilder
@@ -108,6 +108,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 13:18:38"
               comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-17 14:34:04"
+              comment: "3"
     "0007":
         adr_id: "0007"
         title: Handle structured donation results with legacy PayloadVoid fallback
