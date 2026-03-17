@@ -55,9 +55,17 @@ main.py / ScriptWrapper
 
 FlowBuilder moves from `platforms/flow_builder.py` to `helpers/flow_builder.py` (per AD0001 — it's shared infrastructure, not a platform binding).
 
+### Type annotation change
+
+`FlowBuilder.__init__` changes `session_id: int` to `session_id: str` to match script.py's contract and dd-vu-2026's usage.
+
+### Interface contract
+
+`validate_file(path)` and `extract_data(path, validation)` receive a **file path string** (from `materialize_file()`), not a file object. This is consistent with the current d3i-infra platform implementations. The materialization step in start_flow() ensures all platform code works with paths regardless of whether the browser delivered PayloadFile or PayloadString.
+
 ### start_flow() Rewrite
 
-The 8-step per-platform flow with explicit control flow rules:
+The 11-step per-platform flow with explicit control flow rules:
 
 - `continue` — retry upload only
 - `break` — successful extraction, proceed to consent
@@ -85,12 +93,17 @@ All informational pages (no_data, safety_error, donate_failure) are awaited (`_ 
 11. Return (script.py handles next platform or end page)
 ```
 
-FlowBuilder does not yield `ph.exit()`. Exit is a study-level concern owned by script.py.
+FlowBuilder does not yield `ph.exit()` or `CommandSystemExit`. Exit is handled by ScriptWrapper: when the generator exhausts (StopIteration), ScriptWrapper automatically returns `CommandSystemExit(0, "End of script")`. script.py yields the end page and then returns; the generator protocol handles termination.
+
+### Behavior Changes
+
+- **Donate key format:** Changes from `f"{self.session_id}"` to `f"{self.session_id}-{self.platform_name.lower()}"`. This is required for multi-platform studies (avoids key collision). Single-platform builds will produce keys like `"abc123-facebook"` instead of `"abc123"`. Downstream data pipelines that expect plain session_id keys will need updating.
+- **Empty extraction:** Currently (line 81), an empty table list still shows the consent form. After this change, an empty extraction renders a "no relevant data found" page and skips donation. This is intentional — showing an empty consent form is confusing UX. The no-data page explicitly tells the participant what happened.
 
 ### Bug Fixes
 
-- **Retry result capture** (current line 76): yield now captures result, checks `__type__`, breaks on decline
-- **PayloadFile support** (current line 60): replaced PayloadString check with materialize_file() which handles both types
+- **Retry result capture** (current line 76): yield now captures result, checks `__type__`, breaks on decline. Previously the result was discarded.
+- **PayloadFile support** (current line 60): replaced PayloadString check with materialize_file() which handles both types for backward compatibility.
 
 ### Unchanged
 
@@ -100,7 +113,7 @@ FlowBuilder does not yield `ph.exit()`. Exit is a study-level concern owned by s
 
 ## script.py Rewrite
 
-Replaces both `d3i_example_script.py` and eyra's example `script.py`. Based on dd-vu-2026's proven pattern, stripped to orchestration only.
+Replaces both `d3i_example_script.py` and eyra's example `script.py`. Synthesizes dd-vu-2026's proven study orchestration pattern with FlowBuilder delegation via `yield from`. dd-vu-2026 proved the orchestration logic (multi-platform sequencing, filtering, safety checks, donation handling). FlowBuilder proved the template method pattern. The `yield from` delegation is the new element that connects them — this combination has not been deployed in production but follows directly from both proven components.
 
 **Responsibilities:**
 - Define the platform list (which FlowBuilder subclasses to run)
@@ -121,7 +134,12 @@ def process(session_id: str, platform: str | None = None):
         ("LinkedIn",  linkedin.LinkedInFlow(session_id)),
         ("Instagram", instagram.InstagramFlow(session_id)),
         ("Facebook",  facebook.FacebookFlow(session_id)),
-        # ... etc
+        ("YouTube",   youtube.YouTubeFlow(session_id)),
+        ("TikTok",    tiktok.TikTokFlow(session_id)),
+        ("Netflix",   netflix.NetflixFlow(session_id)),
+        ("ChatGPT",   chatgpt.ChatGPTFlow(session_id)),
+        ("WhatsApp",  whatsapp.WhatsAppFlow(session_id)),
+        ("X",         x.XFlow(session_id)),
     ]
 
     platforms = filter_platforms(all_platforms, platform)
@@ -132,6 +150,8 @@ def process(session_id: str, platform: str | None = None):
 
     yield ph.render_end_page()
 ```
+
+**Exit protocol:** After `render_end_page()`, `process()` returns. The generator exhausts. ScriptWrapper catches StopIteration and returns `CommandSystemExit(0, "End of script")`. The host (mono) receives the exit command and handles the transition. script.py never yields CommandSystemExit directly.
 
 ## New and Modified Helpers
 
@@ -146,17 +166,23 @@ CHUNKED_EXPORT_SENTINEL_BYTES = MAX_FILE_SIZE_BYTES  # same value, distinct inte
 def materialize_file(file_result) -> str:
     """Convert PayloadFile or PayloadString to a file path.
 
-    PayloadFile: write AsyncFileAdapter contents to /tmp, return path.
-    PayloadString: return existing path directly.
+    file_result.__type__ == "PayloadFile": write file_result.value
+    (AsyncFileAdapter) contents to /tmp, return path.
+    file_result.__type__ == "PayloadString": return file_result.value directly.
     Anything else: raise TypeError.
 
     Note: /tmp is emscripten in-memory FS — files persist for worker
     lifetime and are freed when the WebWorker terminates. No cleanup needed.
-    See project memory (project_worker_memory_hang.md) for broader memory concerns.
+    Materialization doubles memory usage of the file (original + copy).
+    See project_worker_memory_hang.md for broader browser memory concerns.
     """
 
 def check_file_safety(path: str) -> None:
-    """Raise FileTooLargeError or ChunkedExportError if file is unsafe."""
+    """Raise FileTooLargeError or ChunkedExportError if file is unsafe.
+
+    Checks: >MAX_FILE_SIZE_BYTES (too large),
+    exactly CHUNKED_EXPORT_SENTINEL_BYTES (split export sentinel).
+    """
 
 class FileTooLargeError(Exception): ...
 class ChunkedExportError(Exception): ...
@@ -168,22 +194,30 @@ UI construction helpers (use existing factory-supported types):
 
 ```python
 def render_end_page():
-    """Render study completion page. Uses top-level PropsUIPageEnd."""
+    """Render study completion page. Uses top-level PropsUIPageEnd.
+    Returns CommandUIRender wrapping PropsUIPageEnd."""
 
 def render_no_data_page(platform_name: str):
     """Render 'no relevant data found' with acknowledge button.
-    Uses standard render_page() + PropsUIPromptConfirm."""
+    Uses standard render_page() + PropsUIPromptConfirm.
+    Caller should yield and await response before returning."""
 
 def render_safety_error_page(platform_name: str, error: Exception):
-    """Render file safety error. Uses PropsUIPageError as custom body
-    component inside PropsUIPageDataSubmission (via ErrorPageFactory)."""
+    """Render file safety error.
+    Uses PropsUIPageError as a custom body component inside
+    PropsUIPageDataSubmission, rendered by the registered ErrorPageFactory.
+    Note: PropsUIPageError is dispatched through the factory pattern
+    (ErrorPageFactory checks __type__), not as a top-level page type.
+    Caller should yield and await response before returning."""
 
 def render_donate_failure_page(platform_name: str):
-    """Render donation failure. Uses PropsUIPageError as custom body
-    component inside PropsUIPageDataSubmission (via ErrorPageFactory)."""
+    """Render donation failure.
+    Uses PropsUIPageError as a custom body component inside
+    PropsUIPageDataSubmission, rendered by the registered ErrorPageFactory.
+    Caller should yield and await response before returning."""
 ```
 
-Protocol helper (not UI construction):
+Protocol helper (bridge-result interpretation, not UI construction):
 
 ```python
 def handle_donate_result(result) -> bool:
@@ -205,7 +239,7 @@ def handle_donate_result(result) -> bool:
 
 **Logging:**
 - Change `add_log_handler()` default from `"port.script"` to `"port"` to capture all port package loggers (FlowBuilder, platforms, helpers)
-- Add formatter with logger name: `"%(name)s: %(message)s"`
+- Add formatter with logger name: `"%(name)s: %(message)s"` so forwarded messages retain source context
 
 **error_flow() AD0003 violation:**
 - Flagged for future cleanup. Lines 26-41 construct raw PropsUI objects. Should be refactored to use port_helpers when the error donation system is properly built. Not in scope for this design.
@@ -214,7 +248,7 @@ def handle_donate_result(result) -> bool:
 
 ### New files
 - `helpers/uploads.py` — file materialization + safety checks
-- `tests/test_uploads.py` — materialize_file, check_file_safety tests
+- `tests/test_uploads.py` — materialize_file (PayloadFile + PayloadString + TypeError), check_file_safety (normal, too large, chunked export)
 - `tests/test_flow_builder.py` — start_flow paths: happy, retry, skip, no-data, safety error, donate failure
 - `tests/test_port_helpers.py` — new helper function tests
 
@@ -222,11 +256,11 @@ def handle_donate_result(result) -> bool:
 - `platforms/flow_builder.py` → `helpers/flow_builder.py`
 
 ### Modified files
-- `helpers/flow_builder.py` — rewritten start_flow() with all 8 steps, bug fixes, correct control flow
+- `helpers/flow_builder.py` — rewritten start_flow() (11 steps), bug fixes, correct control flow, session_id type annotation `int` → `str`
 - `helpers/port_helpers.py` — add render_end_page(), render_no_data_page(), render_safety_error_page(), render_donate_failure_page(), handle_donate_result()
-- `script.py` — rewritten as study orchestrator (new imports from port.platforms.*, platform list, filtering, yield from, end page)
-- `main.py` — logger attachment scope and formatter
-- `platforms/facebook.py` — update FlowBuilder import to port.helpers.flow_builder
+- `script.py` — rewritten as study orchestrator (new imports from port.platforms.*, all 9 platforms listed, filtering, `yield from`, end page)
+- `main.py` — logger attachment scope (`"port.script"` → `"port"`) and formatter
+- `platforms/facebook.py` — update FlowBuilder import to `port.helpers.flow_builder`
 - `platforms/instagram.py` — update FlowBuilder import
 - `platforms/tiktok.py` — update FlowBuilder import
 - `platforms/youtube.py` — update FlowBuilder import
@@ -235,7 +269,7 @@ def handle_donate_result(result) -> bool:
 - `platforms/chatgpt.py` — update FlowBuilder import
 - `platforms/whatsapp.py` — update FlowBuilder import
 - `platforms/x.py` — update FlowBuilder import
-- `tests/test_main_queue.py` — update logger scope assumption
+- `tests/test_main_queue.py` — update logger scope assumption from `port.script` to `port`
 
 ### Deleted files
 - `platforms/flow_builder.py` (old location, after move)
@@ -244,6 +278,8 @@ def handle_donate_result(result) -> bool:
 - `helpers/parsers.py` — donation_flows dependency
 - `helpers/entries_data.py` — donation_flows dependency
 - `helpers/donation_flow.py` — donation_flows dependency
+- `helpers/readers.py` — only imported by parsers.py and donation_flows/; orphaned after deletion
+- `helpers/Structure_extractor_libraries/` — entire directory (6 files); imports from parsers.py which is deleted; part of what-if's structure donation tooling, not part of the runtime extraction architecture
 
 ### Not changed
 - `helpers/validate.py`
