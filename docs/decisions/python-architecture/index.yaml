@@ -55,6 +55,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 13:20:45"
               comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-17 15:03:22"
+              comment: "3"
     "0004":
         adr_id: "0004"
         title: Separate upstream props from D3I-custom props
