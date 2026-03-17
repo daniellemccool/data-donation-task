@@ -44,22 +44,18 @@ def render_page(
     return CommandUIRender(page)
 
 
-def generate_retry_prompt(platform_name: str) -> d3i_props.PropsUIPromptRetry:
+def generate_retry_prompt(platform_name: str) -> props.PropsUIPromptConfirm:
     """
     Generate a bilingual retry prompt for file processing errors.
 
-    This function returns a bilingual (English and Dutch) retry prompt
-    when a file from a specific platform cannot be processed. It informs
-    the user that the file could not be processed and provides the option
-    to try again with a different file.
+    Returns a PropsUIPromptConfirm with "Try again" (ok → PayloadTrue) and
+    "Continue" (cancel → PayloadFalse) buttons. Using standard feldspar
+    PropsUIPromptConfirm instead of d3i PropsUIPromptRetry which only
+    renders a single button. See data-collector/AD0002 for the broader
+    decision on custom vs standard prompt components.
 
     Args:
-        platform_name (str): The name of the platform associated with the file
-            that could not be processed. This name is inserted into the prompt text.
-
-    Returns:
-        d3i_props.PropsUIPromptRetry: A retry prompt object containing
-        the message text and the label for the "Try again" button.
+        platform_name: The name of the platform whose file could not be processed.
     """
 
     text = props.Translatable(
@@ -70,7 +66,8 @@ def generate_retry_prompt(platform_name: str) -> d3i_props.PropsUIPromptRetry:
         }
     )
     ok = props.Translatable({"en": "Try again", "nl": "Probeer opnieuw", "es": "Intentar de nuevo"})
-    return d3i_props.PropsUIPromptRetry(text, ok)
+    cancel = props.Translatable({"en": "Continue", "nl": "Doorgaan", "es": "Continuar"})
+    return props.PropsUIPromptConfirm(text, ok, cancel)
 
 
 def generate_file_prompt(
