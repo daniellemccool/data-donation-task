@@ -5,6 +5,7 @@ Override validate_file() and extract_data(). Call start_flow()
 as a generator from script.py via `yield from`.
 """
 from abc import abstractmethod
+import json
 import logging
 
 import port.api.props as props
@@ -106,8 +107,9 @@ class FlowBuilder:
         # 9. Donate with per-platform key
         if consent_result.__type__ == "PayloadJSON":
             reviewed_data = consent_result.value
+        elif consent_result.__type__ == "PayloadFalse":
+            reviewed_data = json.dumps({"status": "data_submission declined"})
         else:
-            # User declined or unknown response — skip donation
             return
 
         donate_key = f"{self.session_id}-{self.platform_name.lower()}"
