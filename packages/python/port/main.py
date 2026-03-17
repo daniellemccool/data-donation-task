@@ -61,6 +61,7 @@ class ScriptWrapper(Generator):
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
         handler = LogForwardingHandler(self.queue)
+        handler.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
         logger.addHandler(handler)
 
