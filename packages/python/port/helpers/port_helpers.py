@@ -1,6 +1,10 @@
+import logging
+
 import port.api.d3i_props as d3i_props
 import port.api.props as props
 from port.api.commands import CommandSystemDonate, CommandSystemExit, CommandUIRender
+
+_logger = logging.getLogger(__name__)
 
 
 def render_page(
@@ -248,3 +252,104 @@ def generate_questionnaire() -> d3i_props.PropsUIPromptQuestionnaire:
     return d3i_props.PropsUIPromptQuestionnaire(
         description=questionnaire_description, questions=[multiple_choice_question, checkbox_question_obj, open_ended_question]
     )
+
+
+def render_end_page() -> CommandUIRender:
+    """Render study completion page."""
+    return CommandUIRender(props.PropsUIPageEnd())
+
+
+def render_no_data_page(platform_name: str) -> CommandUIRender:
+    """Render 'no relevant data found' with acknowledge button.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": f"No data found",
+            "nl": f"Geen gegevens gevonden",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Unfortunately, no relevant data was found in your {platform_name} file.",
+            "nl": f"Helaas zijn er geen relevante gegevens gevonden in uw {platform_name} bestand.",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def render_safety_error_page(platform_name: str, error: Exception) -> CommandUIRender:
+    """Render file safety error page.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": "File cannot be processed",
+            "nl": "Bestand kan niet worden verwerkt",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Your {platform_name} file could not be processed: {error}",
+            "nl": f"Uw {platform_name} bestand kon niet worden verwerkt: {error}",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def render_donate_failure_page(platform_name: str) -> CommandUIRender:
+    """Render donation failure page.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": "Data submission failed",
+            "nl": "Gegevensinzending mislukt",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Unfortunately, your {platform_name} data could not be submitted. Please try again later.",
+            "nl": f"Helaas konden uw {platform_name} gegevens niet worden ingediend. Probeer het later opnieuw.",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def handle_donate_result(result) -> bool:
+    """Inspect donate result. Returns True on success, False on failure.
+
+    eyra/feldspar develop (Feb 2026+) returns PayloadResponse for
+    CommandSystemDonate with value.success indicating outcome. Older
+    feldspar and FakeBridge (dev mode) return PayloadVoid (fire-and-forget).
+
+    PayloadResponse → check value.success (production path, checked first)
+    PayloadVoid / None → True (dev mode / backward-compat)
+    Anything else → log warning, return False
+    """
+    if result is None:
+        return True
+
+    result_type = getattr(result, "__type__", None)
+
+    if result_type == "PayloadResponse":
+        # value is { success: bool, key: str, status: int, error?: str }
+        return bool(result.value.success)
+
+    if result_type == "PayloadVoid":
+        return True
+
+    _logger.warning("Unexpected donate result type: %s", result_type)
+    return False
