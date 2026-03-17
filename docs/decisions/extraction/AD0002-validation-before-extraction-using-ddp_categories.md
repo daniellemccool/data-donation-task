@@ -4,12 +4,13 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-13 13:41:49"
+date: 2026-03-13T00:00:00Z
 links:
     precedes:
         - "0001"
+        - "0003"
     succeeds: []
 status: accepted
-date: 2026-03-13
 tags:
     - validation
     - ddp-categories

@@ -53,3 +53,24 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-16 16:28:08"
               comment: "4"
+            - author: Danielle McCool
+              date: "2026-03-17 13:21:12"
+              comment: "5"
+    "0004":
+        adr_id: "0004"
+        title: Flow termination via generator exhaustion not explicit exit command
+        status: decided
+        tags:
+            - generator-protocol
+            - termination
+            - host-integration
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:17"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:17"
+              comment: "2"

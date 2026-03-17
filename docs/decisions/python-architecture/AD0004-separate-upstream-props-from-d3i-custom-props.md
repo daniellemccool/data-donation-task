@@ -4,11 +4,14 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-13 13:33:17"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-17 13:20:55"
+date: 2026-03-13T00:00:00Z
 links:
     precedes: []
     succeeds: []
 status: accepted
-date: 2026-03-13
 tags:
     - props
     - upstream-alignment
@@ -49,4 +52,4 @@ Code review: any new Python prop type that is D3I-specific (not present in upstr
 See [fork-governance/AD0003](../fork-governance/AD0003-maintain-upstream-alignment-for-the-feldspar-package.md) — upstream alignment policy that motivates keeping `props.py` as a clean mirror.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-13 13:33:17) Danielle McCool: marked decision as decided
+<a name="comment-2"></a>2. (2026-03-17 13:20:55) Danielle McCool: Exception (2026-03-17): PropsUIPageError is in props.py (line 352) but is not an upstream Eyra type — it should be in d3i_props.py per this ADR. However it is already shipped and registered with ErrorPageFactory in App.tsx. The extraction consolidation design depends on it for safety-error and donate-failure pages. Exempted as existing debt: moving it to d3i_props.py is a separate cleanup that requires updating both Python and TypeScript imports. Custom page-body types already shipped in this fork are grandfathered.

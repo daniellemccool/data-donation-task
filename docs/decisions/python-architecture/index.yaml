@@ -17,6 +17,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-13 13:33:16"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:20:36"
+              comment: "2"
     "0002":
         adr_id: "0002"
         title: No cross-layer private imports
@@ -49,6 +52,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-13 13:33:16"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:20:45"
+              comment: "2"
     "0004":
         adr_id: "0004"
         title: Separate upstream props from D3I-custom props
@@ -64,6 +70,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-13 13:33:17"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:20:55"
+              comment: "2"
     "0005":
         adr_id: "0005"
         title: Python generator protocol for workflow orchestration
@@ -83,7 +92,7 @@ decisions:
     "0006":
         adr_id: "0006"
         title: Consolidate donation_flows and platforms into single extraction architecture
-        status: open
+        status: accepted
         tags:
             - extraction
             - flowbuilder
@@ -96,3 +105,42 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-16 17:27:31"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:18:38"
+              comment: "2"
+    "0007":
+        adr_id: "0007"
+        title: Handle structured donation results with legacy PayloadVoid fallback
+        status: decided
+        tags:
+            - donation
+            - host-compatibility
+            - protocol
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:23:49"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:23:49"
+              comment: "2"
+    "0008":
+        adr_id: "0008"
+        title: Forward logs from the port package not only port.script
+        status: decided
+        tags:
+            - logging
+            - observability
+            - bridge
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:09"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:09"
+              comment: "2"

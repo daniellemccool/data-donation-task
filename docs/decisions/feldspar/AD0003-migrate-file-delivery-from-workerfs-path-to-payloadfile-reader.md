@@ -13,6 +13,9 @@ comments:
     - author: Danielle McCool
       comment: "4"
       date: "2026-03-16 16:28:08"
+    - author: Danielle McCool
+      comment: "5"
+      date: "2026-03-17 13:21:12"
 links:
     precedes: []
     succeeds: []
@@ -73,4 +76,4 @@ Complexity budget: The worker is a ~150-line JS file. Adding too much abstractio
 We decided for [Option 2](#option-2) because: PayloadFile does not cross the feldspar-mono boundary (postMessage bridge) — it is entirely internal to the iframe worker. Platform scripts (linkedin.py, twitter.py, etc.) are unaffected because script.py materializes the AsyncFileAdapter to a temp file path before calling them. Only script.py needs a small PayloadFile branch, making the migration trivial. The WORKERFS fallback and env var switch added complexity without meaningful benefit, since no boundary or deployment constraint requires the old protocol. Aligning with eyra upstream on PayloadFile-only eliminates dual-protocol maintenance.
 
 ## <a name="comments"></a> Comments
-<a name="comment-4"></a>4. (2026-03-16 16:28:08) Danielle McCool: Implementation (2026-03-16): py_worker.js always sends PayloadFile via createAsyncFileReader. main.py ScriptWrapper wraps the JS reader with AsyncFileAdapter (file-like object with read/seek/tell). script.py handles both PayloadFile (materializes to /tmp via adapter.read()) and PayloadString (legacy path) so it works regardless of worker version. Platform scripts receive a path string either way — no changes needed. WORKERFS codepath and VITE_PAYLOAD_FILE env var removed.
+<a name="comment-5"></a>5. (2026-03-17 13:21:12) Danielle McCool: Implementation update (2026-03-17): The extraction consolidation design moves PayloadFile materialization from script.py into helpers/uploads.py materialize_file(). FlowBuilder calls materialize_file() which handles both PayloadFile (write to /tmp) and PayloadString (pass through path). Platform validate_file() and extract_data() continue to receive path strings. main.py ScriptWrapper still wraps JS readers with AsyncFileAdapter. The original note that 'only script.py needs a small PayloadFile branch' is superseded — the branch now lives in shared infrastructure called by FlowBuilder.

@@ -4,6 +4,10 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-13 13:33:16"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-17 13:20:36"
+date: 2026-03-13T00:00:00Z
 links:
     precedes:
         - "0002"
@@ -11,7 +15,6 @@ links:
     succeeds:
         - "0005"
 status: accepted
-date: 2026-03-13
 tags:
     - layering
     - structure
@@ -59,4 +62,4 @@ port/
 See [fork-governance/AD0004](../fork-governance/AD0004-three-package-monorepo-with-distinct-modification-policies.md) for the monorepo structure that makes Python its own package.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-13 13:33:16) Danielle McCool: marked decision as decided
+<a name="comment-2"></a>2. (2026-03-17 13:20:36) Danielle McCool: Clarification (2026-03-17): The layer definition 'helpers/ imports only api/' is shorthand for the dependency direction rule. Same-layer imports within helpers/ are permitted (e.g. flow_builder.py importing uploads.py and validate.py). The real constraint is no upward imports: helpers/ never imports platforms/ or script.py. This was confirmed during the extraction consolidation design (AD0006).

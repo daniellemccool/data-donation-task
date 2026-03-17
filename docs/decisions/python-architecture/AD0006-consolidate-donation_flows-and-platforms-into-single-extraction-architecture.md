@@ -4,10 +4,13 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-16 17:27:31"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-17 13:18:38"
 links:
     precedes: []
     succeeds: []
-status: open
+status: accepted
 tags:
     - extraction
     - flowbuilder
@@ -18,12 +21,13 @@ title: Consolidate donation_flows and platforms into single extraction architect
 
 ## <a name="question"></a> Context and Problem Statement
 
-Two parallel extraction systems exist: donation_flows/ (data-driven entries pattern from what-if — active in script.py) and platforms/ (FlowBuilder template method with DDP_CATEGORIES — d3i-infra standard but unwired). Each has strengths the other lacks. donation_flows/ has superior data completeness (180 vs 26 tables for Facebook) and helper-based UI construction aligned with python-architecture/AD0003. platforms/ has FlowBuilder (extraction/AD0001) and DDP_CATEGORIES validation (extraction/AD0002). Neither system satisfies both ADRs. How should these be consolidated?
+Two parallel extraction systems exist: donation_flows/ (data-driven entries pattern from what-if — active in script.py) and platforms/ (FlowBuilder template method with DDP_CATEGORIES — d3i-infra standard but unwired). The project's core principle is data minimization: only extract what researchers need. donation_flows/ auto-extracts everything (180 Facebook tables); platforms/ provides curated hand-written extraction functions. FlowBuilder was designed by trbKnl to standardize data donation flows and is used across the d3i ecosystem. How should these be consolidated into a single standard?
 
 ## <a name="options"></a> Considered Options
 1. <a name="option-1"></a> FlowBuilder control flow + data-driven extraction + DDP_CATEGORIES validation
 2. <a name="option-2"></a> Keep donation_flows/ pattern with DDP_CATEGORIES validation bolted on
 3. <a name="option-3"></a> Keep both systems — let researchers choose
+4. <a name="option-4"></a> FlowBuilder standard with hand-written extraction library — remove donation_flows/
 
 ## <a name="criteria"></a> Decision Drivers
 Feldspar alignment: FlowBuilder.start_flow() mirrors eyra's expected generator protocol — the retry/consent/donation control flow should be framework-level, not per-script
@@ -34,6 +38,8 @@ Validation robustness: DDP_CATEGORIES (platforms/) validates against known file 
 Retry flow correctness: FlowBuilder.start_flow() has a bug at line 76 — yields retry prompt but never checks the response, so retries skip back to consent instead of re-prompting for file
 Error observability: donation_flows/ uses logging.exception() with full traceback and structured DataFrame export; platforms/ uses logger.error() without traceback and no export mechanism
 Code maintainability: donation_flows/ is 59 lines per platform (data-driven); platforms/ is 1000+ lines per platform (hand-written extraction functions)
+Data minimization: the project only extracts what researchers need — auto-extraction (180 tables) conflicts with this principle; hand-written functions are intentional selections
+Ecosystem adoption: FlowBuilder is used in d3i-infra (9 platforms) and dd-vu-2026 (7 production platforms) — it is the de facto d3i standard
 ### Pros and Cons
 
 **FlowBuilder control flow + data-driven extraction + DDP_CATEGORIES validation**
@@ -61,7 +67,19 @@ Code maintainability: donation_flows/ is 59 lines per platform (data-driven); pl
 * Bad, because bug fixes and flow improvements must be applied in two places
 * Bad, because new researchers don't know which pattern to follow
 
+**FlowBuilder standard with hand-written extraction library — remove donation_flows/**
+* Good, because realizes trbKnl's original goal of standardizing data donation flows
+* Good, because aligns with data minimization — researchers select specific tables, not auto-extract everything
+* Good, because satisfies extraction/AD0001 (FlowBuilder) and python-architecture/AD0003 (helper-based UI)
+* Good, because single architecture — no ambiguity for contributors or new researchers
+* Good, because FlowBuilder is already the de facto d3i standard (9 platforms in d3i-infra, 7 in dd-vu-2026)
+* Good, because DDP_CATEGORIES validation is preserved
+* Neutral, because requires fixing FlowBuilder retry bug and adding missing flow steps (safety, donation result handling)
+* Bad, because fewer tables per platform than donation_flows/ (26 vs 180 for Facebook) — researchers needing more coverage add extraction functions manually
+* Bad, because platforms/ code is more verbose (1000+ LOC per platform vs 59)
+
+## <a name="outcome"></a> Decision Outcome
+We decided for [Option 4](#option-4) because: FlowBuilder realizes Niek's (trbKnl) original goal of standardizing data donation flows. Hand-written extraction functions align with data minimization: researchers select specific tables, not auto-extract everything. donation_flows/ (what-if origin) is removed as a parallel architecture. FlowBuilder moves to helpers/flow_builder.py (per AD0001), owns the per-platform flow (file→validate→retry→extract→consent→donate), and script.py delegates via yield from. The entries pattern could become an optional plug-in but is not the standard. See docs/superpowers/specs/2026-03-17-extraction-consolidation-design.md for the full design.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-16 17:27:31) Danielle McCool: More Information:
-This decision supersedes the current state where donation_flows/ (from what-if, commit 4f4c0d88 by Kasper Welbers, 2025-07-01) is active and platforms/FlowBuilder (d3i-infra standard) is unwired. Related: extraction/AD0001 (FlowBuilder), extraction/AD0002 (DDP_CATEGORIES), python-architecture/AD0003 (helper-based UI). FlowBuilder retry bug: platforms/flow_builder.py line 76 yields retry prompt without checking response.
+<a name="comment-2"></a>2. (2026-03-17 13:18:38) Danielle McCool: marked decision as decided

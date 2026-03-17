@@ -26,8 +26,61 @@ decisions:
         links:
             precedes:
                 - "0001"
+                - "0003"
             succeeds: []
         comments:
             - author: Danielle McCool
               date: "2026-03-13 13:41:49"
               comment: "1"
+    "0003":
+        adr_id: "0003"
+        title: Reject unsafe uploads before DDP validation and extraction
+        status: decided
+        tags:
+            - safety
+            - uploads
+            - flowbuilder
+        links:
+            precedes: []
+            succeeds:
+                - "0002"
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:23:34"
+              comment: "1"
+    "0004":
+        adr_id: "0004"
+        title: Empty extraction renders no-data acknowledgment and skips donation
+        status: decided
+        tags:
+            - extraction
+            - flowbuilder
+            - ux
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:23:55"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:23:55"
+              comment: "2"
+    "0005":
+        adr_id: "0005"
+        title: Use session-platform donation keys for multi-platform studies
+        status: decided
+        tags:
+            - donation
+            - multi-platform
+            - data-pipeline
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:03"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 13:24:03"
+              comment: "2"

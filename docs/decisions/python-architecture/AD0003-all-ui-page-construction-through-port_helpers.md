@@ -4,12 +4,15 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-13 13:33:16"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-17 13:20:45"
+date: 2026-03-13T00:00:00Z
 links:
     precedes: []
     succeeds:
         - "0001"
 status: accepted
-date: 2026-03-13
 tags:
     - ui-construction
     - helpers
@@ -54,4 +57,4 @@ The `feat/facebook-ddp-error-handling` branch's `donation_failed_flow()` constru
 See [extraction/AD0001](../extraction/AD0001-flowbuilder-template-for-per-platform-extraction-flows.md) — FlowBuilder lives in helpers/ and uses port_helpers for page construction.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-13 13:33:16) Danielle McCool: marked decision as decided
+<a name="comment-2"></a>2. (2026-03-17 13:20:45) Danielle McCool: Known violation (2026-03-17): main.py error_flow() (lines 26-41) constructs raw PropsUI objects directly. This is deferred — it will be fixed when the error donation system is properly redesigned. The extraction consolidation design (AD0006) enforces AD0003 for script.py and FlowBuilder but explicitly leaves main.py as an out-of-scope violation.
