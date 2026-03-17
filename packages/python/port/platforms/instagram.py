@@ -542,7 +542,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
 
 
 class InstagramFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "Instagram")
         
     def validate_file(self, file):

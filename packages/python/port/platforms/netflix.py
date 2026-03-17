@@ -229,7 +229,7 @@ def extraction(netflix_zip: str, selected_user: str) -> list[d3i_props.PropsUIPr
 
 
 class NetflixFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "Netflix")
         
     def validate_file(self, file):

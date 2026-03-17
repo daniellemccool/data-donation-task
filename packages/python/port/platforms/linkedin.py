@@ -279,7 +279,7 @@ def extraction(linkedin_zip: str) -> list:
 
 
 class LinkedInFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "LinkedIn")
         
     def validate_file(self, file):

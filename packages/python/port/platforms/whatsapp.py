@@ -469,7 +469,7 @@ def extraction(df: pd.DataFrame) -> list[d3i_props.PropsUIPromptConsentFormTable
 
 
 class WhatsAppFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "WhatsApp Group Chat")
         
     def validate_file(self, file):

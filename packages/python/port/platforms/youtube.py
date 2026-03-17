@@ -196,7 +196,7 @@ def extraction(zip: str, validation: ValidateInput) -> list[d3i_props.PropsUIPro
 
 
 class YouTubeFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "YouTube")
         
     def validate_file(self, file):

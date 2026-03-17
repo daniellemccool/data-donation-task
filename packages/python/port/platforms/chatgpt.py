@@ -116,7 +116,7 @@ def extraction(chatgpt_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTable
 
 
 class ChatGPTFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "ChatGPT")
         
     def validate_file(self, file):
