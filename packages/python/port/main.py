@@ -56,11 +56,13 @@ class ScriptWrapper(Generator):
         self._error_handler = None
         self.queue: deque = deque()
 
-    def add_log_handler(self, logger_name: str = "port.script") -> None:
+    def add_log_handler(self, logger_name: str = "port") -> None:
         """Attach a handler to the named logger that forwards log records as CommandSystemLog commands."""
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
-        logger.addHandler(LogForwardingHandler(self.queue))
+        handler = LogForwardingHandler(self.queue)
+        handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
+        logger.addHandler(handler)
 
     def send(self, data):
         # If log commands are queued, discard incoming response

@@ -4,7 +4,7 @@ Verifies that log commands emitted during script execution are interleaved
 correctly and that error handling still works with the queue.
 
 Design note: `add_log_handler()` attaches a handler to a global logger
-(`logging.getLogger("port.script")`). Each test that calls `add_log_handler()`
+(`logging.getLogger("port")`). Each test that calls `add_log_handler()`
 must clean up that handler afterwards. The `clean_port_script_logger` autouse
 fixture handles this.
 
@@ -29,7 +29,7 @@ from port.api.props import PropsUIPageEnd
 @pytest.fixture(autouse=True)
 def clean_port_script_logger():
     """Remove any LogForwardingHandler added during a test to prevent handler accumulation."""
-    logger = logging.getLogger("port.script")
+    logger = logging.getLogger("port")
     handlers_before = list(logger.handlers)
     yield
     logger.handlers = handlers_before
@@ -37,7 +37,7 @@ def clean_port_script_logger():
 
 def test_log_commands_returned_before_script_command():
     """Log commands queued during script.send() are returned before the script command."""
-    logger = logging.getLogger("port.script")
+    logger = logging.getLogger("port")
 
     def script_with_logging():
         logger.info("step one")
@@ -51,12 +51,12 @@ def test_log_commands_returned_before_script_command():
     # Queue after send: [log1, log2, CommandUIRender]. Returns log1.
     result1 = wrapper.send(None)
     assert result1["__type__"] == "CommandSystemLog"
-    assert result1["message"] == "step one"
+    assert result1["message"] == "port: step one"
 
     # PayloadVoid is the response to the log command — discarded by queue-drain guard.
     result2 = wrapper.send({"__type__": "PayloadVoid", "value": None})
     assert result2["__type__"] == "CommandSystemLog"
-    assert result2["message"] == "step two"
+    assert result2["message"] == "port: step two"
 
     # Queue still holds CommandUIRender from the first cycle.
     result3 = wrapper.send({"__type__": "PayloadVoid", "value": None})
@@ -76,8 +76,8 @@ def test_no_logs_returns_script_command_directly():
 
 
 def test_add_log_handler_wires_logger():
-    """add_log_handler attaches a handler to the port.script logger."""
-    logger = logging.getLogger("port.script")
+    """add_log_handler attaches a handler to the port logger."""
+    logger = logging.getLogger("port")
     initial_handler_count = len(logger.handlers)
 
     def simple():
@@ -107,7 +107,7 @@ def test_error_handler_still_works_with_queue():
 
 def test_log_command_flow_integration():
     """Integration test: Python log → CommandSystemLog → then script command, full cycle."""
-    logger = logging.getLogger("port.script")
+    logger = logging.getLogger("port")
 
     def script():
         logger.info("hello")
@@ -118,7 +118,7 @@ def test_log_command_flow_integration():
 
     first = wrapper.send(None)
     assert first["__type__"] == "CommandSystemLog"
-    assert first["message"] == "hello"
+    assert first["message"] == "port: hello"
 
     second = wrapper.send({"__type__": "PayloadVoid", "value": None})
     assert second["__type__"] == "CommandUIRender"
@@ -134,7 +134,7 @@ def test_start_function_creates_wrapper_with_log_handler(monkeypatch):
     from port.main import start
     wrapper = start("session123", "LinkedIn")
     assert isinstance(wrapper, ScriptWrapper)
-    logger = logging.getLogger("port.script")
+    logger = logging.getLogger("port")
     handler_types = [type(h).__name__ for h in logger.handlers]
     assert "LogForwardingHandler" in handler_types
     # Cleanup handled by autouse fixture
