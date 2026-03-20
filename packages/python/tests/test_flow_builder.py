@@ -1,6 +1,7 @@
 """Tests for FlowBuilder.start_flow() — all six flow paths."""
 import json
 import sys
+from collections import Counter
 from unittest.mock import MagicMock, patch
 
 sys.modules["js"] = MagicMock()
@@ -9,6 +10,7 @@ import pytest
 from port.helpers.flow_builder import FlowBuilder
 from port.helpers.uploads import FileTooLargeError
 from port.api.commands import CommandUIRender, CommandSystemDonate
+from port.api.d3i_props import ExtractionResult
 import port.api.props as props
 import port.api.d3i_props as d3i_props
 from port.helpers.validate import ValidateInput
@@ -31,10 +33,11 @@ class StubFlow(FlowBuilder):
     def validate_file(self, file):
         v = MagicMock(spec=ValidateInput)
         v.get_status_code_id.return_value = self._validation_status
+        v.current_ddp_category = MagicMock(id="json_en")
         return v
 
     def extract_data(self, file, validation):
-        return self._tables
+        return ExtractionResult(tables=self._tables, errors=Counter())
 
 
 def make_payload(type_name, **attrs):
@@ -90,6 +93,7 @@ class TestRetryPath:
             call_count[0] += 1
             v = MagicMock(spec=ValidateInput)
             v.get_status_code_id.return_value = 1 if call_count[0] == 1 else 0
+            v.current_ddp_category = MagicMock(id="json_en")
             return v
 
         flow.validate_file = varying_validate

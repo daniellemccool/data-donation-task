@@ -5,6 +5,7 @@ Override validate_file() and extract_data(). Call start_flow()
 as a generator from script.py via `yield from`.
 """
 from abc import abstractmethod
+from collections.abc import Generator
 import json
 import logging
 
@@ -15,6 +16,7 @@ import port.helpers.validate as validate
 import port.helpers.uploads as uploads
 
 logger = logging.getLogger(__name__)
+bridge_logger = logging.getLogger("port.bridge")
 
 
 class FlowBuilder:
@@ -52,6 +54,9 @@ class FlowBuilder:
         - continue: retry upload only
         - break: successful extraction, proceed to consent
         - return: every terminal path
+
+        Bridge logger milestones are PII-free status messages forwarded to mono.
+        Local logger keeps full diagnostic detail in browser console only.
         """
         while True:
             # 1. Render file prompt → receive payload
@@ -66,20 +71,32 @@ class FlowBuilder:
 
             # 2. Materialize upload to path
             path = uploads.materialize_file(file_result)
+            file_size = getattr(file_result.value, "size", None) if file_result.__type__ == "PayloadFile" else None
+            bridge_logger.info("[%s] File received: %s bytes, %s",
+                               self.platform_name, file_size or "unknown", file_result.__type__)
 
             # 3. Safety check
             try:
                 uploads.check_file_safety(path)
             except (uploads.FileTooLargeError, uploads.ChunkedExportError) as e:
                 logger.error("Safety check failed for %s: %s", self.platform_name, e)
+                bridge_logger.info("[%s] Safety check failed: %s", self.platform_name, type(e).__name__)
                 _ = yield ph.render_safety_error_page(self.platform_name, e)
                 return
 
             # 4. Validate
             validation = self.validate_file(path)
+            status = validation.get_status_code_id()
+            category = getattr(validation, "current_ddp_category", None)
+            category_id = getattr(category, "id", "unknown") if category else "unknown"
+
+            if status == 0:
+                bridge_logger.info("[%s] Validation: valid (%s)", self.platform_name, category_id)
+            else:
+                bridge_logger.info("[%s] Validation: invalid", self.platform_name)
 
             # 5. If invalid → retry prompt
-            if validation.get_status_code_id() != 0:
+            if status != 0:
                 logger.info("Invalid %s file; prompting retry", self.platform_name)
                 retry_prompt = self.generate_retry_prompt()
                 retry_result = yield ph.render_page(self.UI_TEXT["retry_header"], retry_prompt)
@@ -89,39 +106,58 @@ class FlowBuilder:
 
             # 6. Extract
             logger.info("Extracting data for %s", self.platform_name)
-            table_list = self.extract_data(path, validation)
+            raw_result = self.extract_data(path, validation)
+            if isinstance(raw_result, Generator):
+                result = yield from raw_result
+            else:
+                result = raw_result
 
-            # 7. If no tables → no-data page
-            if not table_list:
+            # 7. Log extraction summary via bridge (PII-free: counts only)
+            total_rows = sum(len(t.data_frame) for t in result.tables)
+            if result.errors:
+                error_summary = ", ".join(f"{k}×{v}" for k, v in result.errors.items())
+                bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: %s",
+                                   self.platform_name, len(result.tables), total_rows, error_summary)
+            else:
+                bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: none",
+                                   self.platform_name, len(result.tables), total_rows)
+
+            # 8. If no tables → no-data page
+            if not result.tables:
                 logger.info("No data extracted for %s", self.platform_name)
                 _ = yield ph.render_no_data_page(self.platform_name)
                 return
 
             break  # proceed to consent
 
-        # 8. Render consent form
-        logger.info("Prompting consent for %s", self.platform_name)
-        review_data_prompt = self.generate_review_data_prompt(table_list)
+        # 9. Render consent form
+        bridge_logger.info("[%s] Consent form shown", self.platform_name)
+        review_data_prompt = self.generate_review_data_prompt(result.tables)
         consent_result = yield ph.render_page(self.UI_TEXT["review_data_header"], review_data_prompt)
 
-        # 9. Donate with per-platform key
+        # 10. Donate with per-platform key
         if consent_result.__type__ == "PayloadJSON":
             reviewed_data = consent_result.value
+            bridge_logger.info("[%s] Consent: accepted", self.platform_name)
         elif consent_result.__type__ == "PayloadFalse":
             reviewed_data = json.dumps({"status": "data_submission declined"})
+            bridge_logger.info("[%s] Consent: declined", self.platform_name)
         else:
             return
 
         donate_key = f"{self.session_id}-{self.platform_name.lower()}"
+        bridge_logger.info("[%s] Donation started: payload size=%d bytes",
+                           self.platform_name, len(reviewed_data))
         donate_result = yield ph.donate(donate_key, reviewed_data)
 
-        # 10. Inspect donate result
+        # 11. Inspect donate result
         if not ph.handle_donate_result(donate_result):
             logger.error("Donation failed for %s", self.platform_name)
+            bridge_logger.info("[%s] Donation result: failed", self.platform_name)
             _ = yield ph.render_donate_failure_page(self.platform_name)
             return
 
-        # 11. Return (script.py handles next platform or end page)
+        bridge_logger.info("[%s] Donation result: success", self.platform_name)
 
     # Methods to be overridden by platform-specific implementations
     def generate_file_prompt(self):
@@ -134,7 +170,7 @@ class FlowBuilder:
         raise NotImplementedError("Must be implemented by subclass")
 
     @abstractmethod
-    def extract_data(self, file: str, validation: validate.ValidateInput) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+    def extract_data(self, file: str, validation: validate.ValidateInput) -> d3i_props.ExtractionResult:
         """Extract data from file using platform-specific logic."""
         raise NotImplementedError("Must be implemented by subclass")
 
