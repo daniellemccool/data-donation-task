@@ -143,11 +143,18 @@ class FlowBuilder:
             return
 
         donate_key = f"{self.session_id}-{self.platform_name.lower()}"
+        is_decline = consent_result.__type__ == "PayloadFalse"
         yield from ph.emit_log("info", f"[{self.platform_name}] Donation started: payload size={len(reviewed_data)} bytes")
         donate_result = yield ph.donate(donate_key, reviewed_data)
 
         # 11. Inspect donate result
+        # For declines, don't show failure UI — the participant chose not to donate,
+        # so a failure to record that decision is invisible infrastructure, not their problem.
         if not ph.handle_donate_result(donate_result):
+            if is_decline:
+                logger.warning("Decline status donation failed for %s (silent)", self.platform_name)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Donation result: decline record failed (silent)")
+                return
             logger.error("Donation failed for %s", self.platform_name)
             yield from ph.emit_log("info", f"[{self.platform_name}] Donation result: failed")
             _ = yield ph.render_donate_failure_page(self.platform_name)
