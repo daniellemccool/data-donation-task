@@ -11,17 +11,23 @@ process.env.NODE_ENV = 'production';
 // Get project name from current directory
 const name = path.basename(process.cwd());
 
+// Get branch name, sanitize slashes
+const { execFileSync } = require('child_process');
+let branch;
+try {
+  branch = execFileSync('git', ['branch', '--show-current'], { encoding: 'utf8' }).trim();
+} catch {
+  branch = 'unknown';
+}
+branch = branch.replace(/\//g, '-');
+
 // Create releases directory if it doesn't exist
 shell.mkdir('-p', 'releases');
-
-// Count existing releases and increment
-const releaseFiles = shell.ls('releases/*').filter(file => !file.includes('releases/')).length || 0;
-const nr = releaseFiles + 1;
 
 // Get timestamp
 const timestamp = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
 
-console.log('Building project...');
+console.log('Building all-platform release...');
 if (shell.exec('pnpm run build').code !== 0) {
   shell.echo('Error: Build failed');
   shell.exit(1);
@@ -29,7 +35,7 @@ if (shell.exec('pnpm run build').code !== 0) {
 
 // Create zip file
 const distPath = path.join('packages', 'data-collector', 'dist');
-const zipFileName = `${name}_${timestamp}_${nr}.zip`;
+const zipFileName = `${name}_all_${branch}_${timestamp}.zip`;
 const zipPath = path.join('releases', zipFileName);
 
 console.log(`Creating release: ${zipFileName}`);

@@ -19,7 +19,8 @@
     "dev:demo": "./check-deps.sh && pnpm run --filter @eyra/data-collector dev",
     "start": "./check-deps.sh && pnpm run build:py && pnpm run --filter @eyra/feldspar build && concurrently \"pnpm run start:py\" \"pnpm run dev:feldspar\" \"pnpm run dev:demo\"",
     "clean": "pnpm run --recursive clean && rm -rf node_modules",
-    "release": "node release.js"
+    "release": "node release.js",
+    "release:platforms": "bash release.sh"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0",
