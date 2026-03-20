@@ -7,6 +7,9 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-20 15:02:40"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-20 15:40:11"
 links:
     precedes: []
     succeeds: []
@@ -66,5 +69,4 @@ Duplicate or parallel observability pipelines create ambiguity and operational n
 We decided for [Option 5](#option-5) because: Three clear boundaries: (1) local diagnostics via module loggers stay in the browser — never forwarded. (2) Host-visible milestones are emitted explicitly as CommandSystemLog through the command protocol — PII-free constrained vocabulary. (3) Full error details belong to a separate consent-gated donation path (future). CommandSystemLog is already the built-in Python-to-host mechanism — using it directly is not extra infrastructure. The hidden handler/queue setup was the extra infrastructure.
 
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-20 15:02:40) Danielle McCool: More Information:
-Supersedes python-architecture/AD0010. See AD0009 for the ScriptWrapper exception catch as PII safety boundary. Implementation: emit_log() helper in port_helpers yields CommandSystemLog. FlowBuilder and script.py use yield from emit_log(). ExtractionResult carries aggregate error counts for milestone summaries.
+<a name="comment-3"></a>3. (2026-03-20 15:40:11) Danielle McCool: AD0008 and AD0010 (intermediate logging scope decisions) were removed — they were decided and superseded within the same session. AD0011 is the canonical decision. The rejected alternatives section already captures the reasoning from those intermediate steps.

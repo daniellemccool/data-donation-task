@@ -135,29 +135,6 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 14:00:34"
               comment: "3"
-    "0008":
-        adr_id: "0008"
-        title: Forward logs from the port package not only port.script
-        status: decided
-        tags:
-            - logging
-            - observability
-            - bridge
-        links:
-            precedes: []
-            revised by:
-                - "0010"
-            succeeds: []
-        comments:
-            - author: Danielle McCool
-              date: "2026-03-17 13:24:09"
-              comment: "1"
-            - author: Danielle McCool
-              date: "2026-03-17 13:24:09"
-              comment: "2"
-            - author: Danielle McCool
-              date: "2026-03-20 15:36:09"
-              comment: "3"
     "0009":
         adr_id: "0009"
         title: Catch uncaught exceptions in ScriptWrapper as PII safety boundary
@@ -175,27 +152,6 @@ decisions:
               comment: "1"
             - author: Danielle McCool
               date: "2026-03-20 13:12:24"
-              comment: "2"
-    "0010":
-        adr_id: "0010"
-        title: Forward logs from the port package not only port.script (Revised)
-        status: decided
-        tags:
-            - logging
-            - observability
-            - bridge
-            - pii-safety
-        links:
-            precedes: []
-            revises:
-                - "0008"
-            succeeds: []
-        comments:
-            - author: Danielle McCool
-              date: "2026-03-20 13:42:06"
-              comment: "1"
-            - author: Danielle McCool
-              date: "2026-03-20 15:36:17"
               comment: "2"
     "0011":
         adr_id: "0011"
@@ -216,3 +172,6 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-20 15:02:40"
               comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-20 15:40:11"
+              comment: "3"
