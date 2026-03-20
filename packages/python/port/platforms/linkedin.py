@@ -56,7 +56,8 @@ DDP_CATEGORIES = [
             "Votes.csv",
             "Email Addresses.csv",
             "Learning.csv",
-            "Reactions.csv"
+            "Reactions.csv",
+            "LAN Ads Engagement.csv",
         ]
     ),
 ]
@@ -177,8 +178,8 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
                 "nl": "Ads clicked"
             }),
             description=props.Translatable({
-                "en": "Record of advertisements you have clicked on while using LinkedIn",
-                "nl": "Overzicht van advertenties waarop je hebt geklikt tijdens het gebruik van LinkedIn"
+                "en": "Record of advertisements you have clicked on while using LinkedIn. Note: LinkedIn only provides numeric ad IDs, not ad titles or descriptions.",
+                "nl": "Overzicht van advertenties waarop je hebt geklikt tijdens het gebruik van LinkedIn. Let op: LinkedIn geeft alleen numerieke advertentie-ID's, geen titels of beschrijvingen.",
             }),
             headers={
                 "Ad clicked Date": props.Translatable({"en": "Ad clicked Date", "nl": "Advertentiedatum"}),
