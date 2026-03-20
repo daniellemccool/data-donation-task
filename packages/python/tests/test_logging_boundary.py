@@ -21,6 +21,16 @@ import port.helpers.port_helpers as ph
 import pandas as pd
 
 
+class _SpyHandler(logging.Handler):
+    """Minimal handler that records messages for testing."""
+    def __init__(self):
+        super().__init__()
+        self.messages = []
+
+    def emit(self, record):
+        self.messages.append(self.format(record))
+
+
 class TestExtractionResult:
     def test_basic_construction(self):
         tables = [
@@ -52,20 +62,17 @@ class TestContentLoggerIsolation:
 
     def test_content_logger_does_not_propagate(self):
         """Content logger stays silent even if a handler is on port."""
-        from port.api.logging import LogForwardingHandler
-
         port_logger = logging.getLogger("port")
-        spy_queue = []
-        spy_handler = LogForwardingHandler(spy_queue)
-        port_logger.addHandler(spy_handler)
+        spy = _SpyHandler()
+        port_logger.addHandler(spy)
 
         content_logger = logging.getLogger("port.helpers.extraction_helpers.content")
         content_logger.propagate = False
         content_logger.addHandler(logging.NullHandler())
         content_logger.debug("Contained in zip: messages/inbox/mothersname_123/photo.jpg")
 
-        assert len(spy_queue) == 0
-        port_logger.removeHandler(spy_handler)
+        assert len(spy.messages) == 0
+        port_logger.removeHandler(spy)
 
 
 class TestHelperErrorCounting:

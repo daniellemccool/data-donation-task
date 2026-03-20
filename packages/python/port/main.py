@@ -1,8 +1,6 @@
-import logging
 import traceback
 import json
 import datetime
-from collections import deque
 from collections.abc import Generator
 
 from port.api.commands import CommandSystemExit, CommandUIRender, CommandSystemDonate
@@ -58,12 +56,8 @@ class ScriptWrapper(Generator):
         self.script = script
         self.platform = platform or "unknown"
         self._error_handler = None
-        self.queue: deque = deque()
 
     def send(self, data):
-        if self.queue:
-            return self.queue.popleft()
-
         if self._error_handler is not None:
             try:
                 command = self._error_handler.send(data)
