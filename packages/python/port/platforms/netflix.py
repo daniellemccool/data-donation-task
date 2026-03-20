@@ -51,13 +51,30 @@ DDP_CATEGORIES = [
 
 
 def extract_users(netflix_zip: str, errors: Counter | None = None) -> list[str]:
-    """Extract all profile names from ViewingActivity.csv."""
-    b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv", errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    """Extract all profile names from Profiles.csv (first column).
+
+    Falls back to ViewingActivity.csv if Profiles.csv is not available.
+    Uses column position rather than name to handle different DDP languages.
+    """
     out: list[str] = []
+
+    # Prefer Profiles.csv — dedicated profile list, first column is always profile name
+    b = eh.extract_file_from_zip(netflix_zip, "Profiles.csv", errors=errors)
+    df = eh.read_csv_from_bytes_to_df(b)
+
+    if df.empty:
+        # Fallback: extract unique values from ViewingActivity.csv
+        b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv", errors=errors)
+        df = eh.read_csv_from_bytes_to_df(b)
+
     try:
-        out = df[df.columns[0]].unique().tolist()
-        out.sort()
+        if not df.empty:
+            # Use "Profile Name" if present, otherwise first column
+            if "Profile Name" in df.columns:
+                out = df["Profile Name"].unique().tolist()
+            else:
+                out = df[df.columns[0]].unique().tolist()
+            out.sort()
     except Exception as e:
         logger.error("Cannot extract users: %s", e)
         if errors is not None:
@@ -66,9 +83,20 @@ def extract_users(netflix_zip: str, errors: Counter | None = None) -> list[str]:
 
 
 def keep_user(df: pd.DataFrame, selected_user: str) -> pd.DataFrame:
-    """Keep only rows where the first column matches selected_user."""
+    """Keep only rows where the profile name column matches selected_user.
+
+    Finds the profile column by checking which column contains the selected_user value,
+    preferring "Profile Name" if it exists.
+    """
     try:
-        df = df.loc[df.iloc[:, 0] == selected_user].reset_index(drop=True)
+        if "Profile Name" in df.columns:
+            df = df.loc[df["Profile Name"] == selected_user].reset_index(drop=True)
+        else:
+            # Find the column containing the selected user
+            for col in df.columns:
+                if selected_user in df[col].values:
+                    df = df.loc[df[col] == selected_user].reset_index(drop=True)
+                    break
     except Exception as e:
         logger.info(e)
     return df
