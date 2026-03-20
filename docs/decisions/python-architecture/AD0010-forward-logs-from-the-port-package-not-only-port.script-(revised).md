@@ -4,6 +4,9 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-20 13:42:06"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-20 15:36:17"
 links:
     precedes: []
     revises:
@@ -53,4 +56,4 @@ Flow milestones (where the participant is in the process) must be forwarded imme
 We decided for [Option 4](#option-4) because: A dedicated port.bridge logger creates an explicit PII boundary in the code. Only script.py and FlowBuilder write to it with a controlled vocabulary of PII-free milestone messages. All other module loggers (extraction_helpers — platform modules — uploads — validate) keep using their __name__ loggers for local diagnostics that never cross the bridge. This supersedes AD0008 Option 1 (attach to port root) which was proven unsafe by testing on mono. See docs/superpowers/specs/2026-03-20-pii-safe-logging-design.md for the full design.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-20 13:42:06) Danielle McCool: marked decision as decided
+<a name="comment-2"></a>2. (2026-03-20 15:36:17) Danielle McCool: Superseded by AD0011: The LogForwardingHandler + port.bridge logger approach was replaced by explicit CommandSystemLog yields from FlowBuilder and script.py. The hidden handler mechanism created a parallel implicit pipeline alongside the JS LogForwarder.

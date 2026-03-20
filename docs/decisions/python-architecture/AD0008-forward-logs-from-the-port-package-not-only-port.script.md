@@ -7,6 +7,9 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-17 13:24:09"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-20 15:36:09"
 links:
     precedes: []
     revised by:
@@ -51,5 +54,4 @@ Eyra upstream attaches to port.script because all their logic is in script.py â€
 We decided for [Option 1](#option-1) because: The layered architecture (AD0001) distributes logic across helpers/ and platforms/. Attaching to port captures everything without per-module registration. A formatter with '%(name)s: %(message)s' preserves source context so logs from different modules are distinguishable. This is an observability-policy change: more logs will be forwarded than before.
 
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-17 13:24:09) Danielle McCool: More Information:
-See python-architecture/AD0001 for the layered architecture that motivates this. See python-architecture/AD0006 for the consolidation that moves logic out of script.py. Implementation: main.py add_log_handler() default changes from 'port.script' to 'port'.
+<a name="comment-3"></a>3. (2026-03-20 15:36:09) Danielle McCool: Superseded: AD0008 was revised by AD0010 (port.bridge scope) which was then superseded by AD0011 (explicit CommandSystemLog yields). The port-wide forwarding approach proved unsafe â€” it forwarded PII-containing extraction errors to mono.

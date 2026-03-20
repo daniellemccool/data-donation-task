@@ -155,6 +155,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 13:24:09"
               comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-20 15:36:09"
+              comment: "3"
     "0009":
         adr_id: "0009"
         title: Catch uncaught exceptions in ScriptWrapper as PII safety boundary
@@ -191,6 +194,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-20 13:42:06"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-20 15:36:17"
+              comment: "2"
     "0011":
         adr_id: "0011"
         title: Use explicit host milestone commands for flow observability — keep local diagnostics local — reserve full error details for consent-gated donation
