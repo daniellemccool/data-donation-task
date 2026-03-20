@@ -289,8 +289,7 @@ def parse_chat(path_to_chat: str) -> pd.DataFrame:
     except Exception as e:
         logger.error(e)
 
-    finally:
-        return pd.DataFrame(out)
+    return pd.DataFrame(out)
 
 
 def find_emojis(df):

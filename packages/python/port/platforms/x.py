@@ -70,8 +70,7 @@ def bytesio_to_listdict(bytes_to_read: io.BytesIO) -> list[dict[Any, Any]]:
     except Exception as e:
         logger.error("Exception was caught: %s", e)
 
-    finally:
-        return out
+    return out
 
 
 def ad_engagement_to_df(x_zip: str, errors: Counter) -> pd.DataFrame:

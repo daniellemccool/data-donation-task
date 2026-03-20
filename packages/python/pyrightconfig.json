@@ -1,8 +1,9 @@
 {
   "include": ["port", "tests"],
   "extraPaths": ["."],
-  "pythonVersion": "3.11",
+  "pythonVersion": "3.14",
+  "pythonPlatform": "Linux",
   "typeCheckingMode": "basic",
   "venvPath": "/home/dmm/.cache/pypoetry/virtualenvs",
-  "venv": "port-Fx1ilG8u-py3.14"
+  "venv": "port-891PveTA-py3.14"
 }

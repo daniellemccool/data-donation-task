@@ -193,7 +193,7 @@ def generate_radio_prompt(
     """
     General purpose prompt selection menu
     """
-    radio_items = [{"id": i, "value": item} for i, item in enumerate(items)]
+    radio_items: list[props.RadioItem] = [{"id": i, "value": item} for i, item in enumerate(items)]
     return props.PropsUIPromptRadioInput(title, description, radio_items)
 
 

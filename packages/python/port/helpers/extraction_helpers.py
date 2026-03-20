@@ -166,7 +166,7 @@ def json_dumper(zfile: str) -> pd.DataFrame:
                 fp = Path(f)
                 if fp.suffix == ".json":
                     b = io.BytesIO(zf.read(f))
-                    d = dict_denester(unzipddp.read_json_from_bytes(b))
+                    d = dict_denester(read_json_from_bytes(b))
                     for k, v in d.items():
                         datapoints.append({
                             "file name": fp.name, 
@@ -364,8 +364,7 @@ def extract_file_from_zip(zfile: str, file_to_extract: str, errors: Counter | No
         if errors is not None:
             errors["Exception"] += 1
 
-    finally:
-        return file_to_extract_bytes
+    return file_to_extract_bytes
 
 
 def _json_reader_bytes(json_bytes: bytes, encoding: str) -> Any:
@@ -537,8 +536,7 @@ def read_csv_from_bytes(json_bytes: io.BytesIO, errors: Counter | None = None) -
         if errors is not None:
             errors["CSVDecodeError"] += 1
 
-    finally:
-        return out
+    return out
 
 
 def read_csv_from_bytes_to_df(json_bytes: io.BytesIO) -> pd.DataFrame:
