@@ -33,7 +33,7 @@ DDP_CATEGORIES = [
         ddp_filetype=DDPFiletype.JSON,
         language=Language.EN,
         known_files=[
-"subscription_for_no_ads.json", "other_categories_used_to_reach_you.json", "ads_feedback_activity.json", "ads_personalization_consent.json", "advertisers_you've_interacted_with.json", "advertisers_using_your_activity_or_information.json", "story_views_in_past_7_days.json", "ad_preferences.json", "groups_you've_searched_for.json", "your_search_history.json", "primary_public_location.json", "timezone.json", "primary_location.json", "your_privacy_jurisdiction.json", "people_and_friends.json", "ads_interests.json", "notifications.json", "notification_of_meta_privacy_policy_update.json", "recently_viewed.json", "recently_visited.json", "your_avatar.json", "meta_avatars_post_backgrounds.json", "contacts_sync_settings.json", "timezone.json", "autofill_information.json", "profile_information.json", "profile_update_history.json", "your_transaction_survey_information.json", "your_recently_followed_history.json", "your_recently_used_emojis.json", "no-data.txt", "navigation_bar_activity.json", "pages_and_profiles_you_follow.json", "pages_you've_liked.json", "your_saved_items.json", "fundraiser_posts_you_likely_viewed.json", "your_fundraiser_donations_information.json", "your_event_responses.json", "event_invitations.json", "your_event_invitation_links.json", "likes_and_reactions_1.json", "your_uncategorized_photos.json", "payment_history.json", "no-data.txt", "your_answers_to_membership_questions.json", "your_group_membership_activity.json", "your_contributions.json", "group_posts_and_comments.json", "your_comments_in_groups.json", "instant_games.json", "your_page_or_groups_badges.json", "instant_games_usage_data.json", "no-data.txt", "who_you've_followed.json", "people_you_may_know.json", "received_friend_requests.json", "your_friends.json",
+"subscription_for_no_ads.json", "other_categories_used_to_reach_you.json", "ads_feedback_activity.json", "ads_personalization_consent.json", "advertisers_you've_interacted_with.json", "advertisers_using_your_activity_or_information.json", "story_views_in_past_7_days.json", "ad_preferences.json", "groups_you've_searched_for.json", "your_search_history.json", "primary_public_location.json", "timezone.json", "primary_location.json", "your_privacy_jurisdiction.json", "people_and_friends.json", "ads_interests.json", "notifications.json", "notification_of_meta_privacy_policy_update.json", "recently_viewed.json", "recently_visited.json", "your_avatar.json", "meta_avatars_post_backgrounds.json", "contacts_sync_settings.json", "timezone.json", "autofill_information.json", "profile_information.json", "profile_update_history.json", "your_transaction_survey_information.json", "your_recently_followed_history.json", "your_recently_used_emojis.json", "no-data.txt", "navigation_bar_activity.json", "pages_and_profiles_you_follow.json", "pages_you've_liked.json", "your_saved_items.json", "fundraiser_posts_you_likely_viewed.json", "your_fundraiser_donations_information.json", "your_event_responses.json", "event_invitations.json", "your_event_invitation_links.json", "likes_and_reactions_1.json", "your_uncategorized_photos.json", "payment_history.json", "no-data.txt", "your_answers_to_membership_questions.json", "your_group_membership_activity.json", "your_contributions.json", "group_posts_and_comments.json", "your_comments_in_groups.json", "instant_games.json", "your_page_or_groups_badges.json", "instant_games_usage_data.json", "no-data.txt", "who_you've_followed.json", "people_you_may_know.json", "received_friend_requests.json", "your_friends.json", "likes_and_reactions.json", "controls.json",
         ],
     ),
 ]
@@ -106,7 +106,7 @@ def notifications_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                 eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Text", "Link", "Gelezen", "Datum"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Text", "Link", "Read", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -131,7 +131,7 @@ def content_sharing_you_have_created_to_df(facebook_zip: str, errors: Counter) -
                 eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Link", "Datum en Tijd"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Link", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -158,7 +158,7 @@ def facebook_reels_usage_to_df(facebook_zip: str, errors: Counter) -> pd.DataFra
                 eh.find_item(denested_dict, "value"),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Interactie met reels", "Waarde"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Reel interaction", "Value"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -181,7 +181,7 @@ def last_28_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
             eh.find_item(denested_dict, "-value"),
         ))
 
-        out = pd.DataFrame(datapoints, columns=["Aantal"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Count"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -208,7 +208,7 @@ def your_search_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFram
                 eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Zoekterm", "Datum"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Search term", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -229,7 +229,7 @@ def your_friends_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
         items = d["friends_v2"]  # pyright: ignore
         datapoints.append((len(items)))
 
-        out = pd.DataFrame(datapoints, columns=["Aantal vrienden op facebook"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Number of friends"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -292,7 +292,7 @@ def recently_viewed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                             eh.epoch_to_iso(entry.get("timestamp", ""), errors=errors)
                         ))
 
-        out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Category", "Name", "Link", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -320,7 +320,7 @@ def recently_visited_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                         eh.epoch_to_iso(entry.get("timestamp", ""), errors=errors)
                     ))
 
-        out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Category", "Name", "Link", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -397,7 +397,7 @@ def group_posts_and_comments_to_df(facebook_zip: str, errors: Counter) -> pd.Dat
                 eh.find_item(denested_dict, "url"),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Title", "Post", "Date", "Url"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Title", "Post", "Date", "URL"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -528,7 +528,7 @@ def pages_youve_liked_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                 eh.epoch_to_iso(item.get("timestamp", ""), errors=errors)
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Name", "Url", "Timestamp"]) # pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Name", "URL", "Timestamp"]) # pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -669,7 +669,7 @@ def your_pages_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                 eh.epoch_to_iso(item.get("timestamp", ""), errors=errors),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Name", "Url", "Timestamp"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Name", "URL", "Timestamp"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -692,7 +692,7 @@ def story_reactions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
                 eh.fix_latin1_string(item.get("title", "")),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Titel"]) #pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Title"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -724,6 +724,81 @@ def your_posts_check_ins_to_df(facebook_zip: str, errors: Counter) -> pd.DataFra
     return out
 
 
+def likes_and_reactions_base_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    """
+    Reads likes_and_reactions.json (no number suffix) or, if absent, the numbered
+    variants likes_and_reactions_1.json, _2.json, ... . Each item is structured with
+    label_values containing Reaction, Name, and URL.
+    """
+    datapoints = []
+
+    def _parse_items(d: list) -> None:
+        for item in d:
+            lv = {x["label"]: x.get("value", "") for x in item.get("label_values", [])}
+            datapoints.append((
+                lv.get("Reaction", ""),
+                eh.fix_latin1_string(lv.get("Name", "")),
+                lv.get("URL", ""),
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors),
+            ))
+
+    try:
+        b = eh.extract_file_from_zip(facebook_zip, "likes_and_reactions.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
+        if d:
+            _parse_items(d)  # pyright: ignore
+        else:
+            # Fall back to numbered files for DDPs that only export _1, _2, ...
+            i = 1
+            while True:
+                b = eh.extract_file_from_zip(facebook_zip, f"likes_and_reactions_{i}.json", errors=errors)
+                d = eh.read_json_from_bytes(b, errors=errors)
+                if not d:
+                    break
+                _parse_items(d)  # pyright: ignore
+                i += 1
+
+    except Exception as e:
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
+
+    out = pd.DataFrame(datapoints, columns=["Reaction", "Name", "URL", "Timestamp"]) if datapoints else pd.DataFrame()  # pyright: ignore
+    return out
+
+
+def controls_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    """
+    Reads preferences/feed/controls.json.
+    Top-level key "controls" is a list of groups (e.g. "Show more", "Show less"),
+    each with an "entries" list.
+    """
+    b = eh.extract_file_from_zip(facebook_zip, "preferences/feed/controls.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
+
+    out = pd.DataFrame()
+    datapoints = []
+
+    try:
+        groups = d["controls"]  # pyright: ignore
+        for group in groups:
+            action = group.get("name", "")
+            for entry in group.get("entries", []):
+                denested = eh.dict_denester(entry)
+                datapoints.append((
+                    action,
+                    eh.fix_latin1_string(eh.find_item(denested, "value")),
+                    eh.epoch_to_iso(eh.find_item(denested, "timestamp"), errors=errors),
+                ))
+
+        out = pd.DataFrame(datapoints, columns=["Action", "Content", "Date"])  # pyright: ignore
+
+    except Exception as e:
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
+
+    return out
+
+
 def extraction(facebook_zip: str) -> ExtractionResult:
     errors = Counter()
     tables = [
@@ -738,6 +813,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows the Facebook profiles and pages you currently follow.",
                 "nl": "Deze tabel toont de Facebook-profielen en -pagina's die je momenteel volgt.",
             }),
+            headers={
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_news_your_locations",
@@ -750,6 +829,9 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table displays the geographical locations for which your Facebook News feed is configured.",
                 "nl": "Deze tabel toont de geografische locaties waarvoor je Facebook Nieuwsfeed is geconfigureerd.",
             }),
+            headers={
+                "Location": props.Translatable({"en": "Location", "nl": "Locatie"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_notifications",
@@ -762,6 +844,12 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains a history of the notifications you've received from Facebook.",
                 "nl": "Deze tabel bevat een overzicht van de notificaties die je van Facebook hebt ontvangen.",
             }),
+            headers={
+                "Text": props.Translatable({"en": "Text", "nl": "Tekst"}),
+                "Link": props.Translatable({"en": "Link", "nl": "Link"}),
+                "Read": props.Translatable({"en": "Read", "nl": "Gelezen"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_reels_usage",
@@ -774,6 +862,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows your interactions with Facebook Reels, such as videos you've watched or engaged with.",
                 "nl": "Deze tabel toont je interacties met Facebook Reels, zoals video's die je hebt bekeken of waarmee je hebt gecommuniceerd.",
             }),
+            headers={
+                "Reel interaction": props.Translatable({"en": "Reel interaction", "nl": "Interactie met reels"}),
+                "Value": props.Translatable({"en": "Value", "nl": "Waarde"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_last_28",
@@ -786,6 +878,9 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table indicates the number of videos you have watched on Facebook in the past 28 days.",
                 "nl": "Deze tabel geeft het aantal video's aan dat je de afgelopen 28 dagen op Facebook hebt bekeken.",
             }),
+            headers={
+                "Count": props.Translatable({"en": "Count", "nl": "Aantal"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_search_history",
@@ -798,6 +893,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains a record of your search queries on Facebook.",
                 "nl": "Deze tabel bevat een overzicht van je zoekopdrachten op Facebook.",
             }),
+            headers={
+                "Search term": props.Translatable({"en": "Search term", "nl": "Zoekterm"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+            },
             visualizations=[
                 {
                     "title": {
@@ -805,7 +904,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                         "nl": "Zoektermen waar je naar zocht",
                     },
                     "type": "wordcloud",
-                    "textColumn": "Zoekterm",
+                    "textColumn": "Search term",
                     "tokenize": False,
                 }
             ]
@@ -821,6 +920,12 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table lists the Facebook profiles you have visited most recently.",
                 "nl": "Deze tabel toont de Facebook-profielen die je recentelijk hebt bezocht.",
             }),
+            headers={
+                "Category": props.Translatable({"en": "Category", "nl": "Categorie"}),
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "Link": props.Translatable({"en": "Link", "nl": "Link"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_viewed",
@@ -833,6 +938,12 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows the Facebook posts, videos, and other items you have recently viewed.",
                 "nl": "Deze tabel toont de Facebook-posts, video's en andere items die je recentelijk hebt bekeken.",
             }),
+            headers={
+                "Category": props.Translatable({"en": "Category", "nl": "Categorie"}),
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "Link": props.Translatable({"en": "Link", "nl": "Link"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_profile_update_history",
@@ -845,18 +956,45 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains a log of changes you've made to your Facebook profile information.",
                 "nl": "Deze tabel bevat een logboek van de wijzigingen die je in je Facebook-profielinformatie hebt aangebracht.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="facebook_likes_and_reactions",
-            data_frame=likes_and_reactions_to_df(facebook_zip, errors),
+            id="facebook_likes_and_reactions_base",
+            data_frame=likes_and_reactions_base_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Likes and reactions on Facebook",
                 "nl": "Likes en reacties op Facebook",
             }),
             description=props.Translatable({
-                "en": "This table shows your likes and reactions to posts, comments, and other content on Facebook.",
-                "nl": "Deze tabel toont je likes en reacties op berichten, commentaren en andere content op Facebook.",
+                "en": "This table shows your likes and reactions to posts and other content on Facebook.",
+                "nl": "Deze tabel toont je likes en reacties op berichten en andere content op Facebook.",
             }),
+            headers={
+                "Reaction": props.Translatable({"en": "Reaction", "nl": "Reactie"}),
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
+        ),
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="facebook_likes_and_reactions",
+            data_frame=likes_and_reactions_to_df(facebook_zip, errors),
+            title=props.Translatable({
+                "en": "Posts you liked (with title)",
+                "nl": "Posts die je leuk vond (met titel)",
+            }),
+            description=props.Translatable({
+                "en": "This table shows the titles of posts you liked on Facebook.",
+                "nl": "Deze tabel toont de titels van posts die je leuk vond op Facebook.",
+            }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Reaction": props.Translatable({"en": "Reaction", "nl": "Reactie"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_group_membership_activity",
@@ -869,9 +1007,14 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table lists the Facebook groups you are currently a member of.",
                 "nl": "Deze tabel toont de Facebookgroepen waar je momenteel lid van bent.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Group name": props.Translatable({"en": "Group name", "nl": "Groepsnaam"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="facebook_pages_and_profiles_you_follow_to_df",
+            id="facebook_pages_and_profiles_you_follow",
             data_frame=pages_and_profiles_you_follow_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Pages and profiles that you follow",
@@ -881,9 +1024,13 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table displays the Facebook Pages and profiles that you actively follow.",
                 "nl": "Deze tabel toont de Facebookpagina's en -profielen die je actief volgt.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="facebook_pages_youve_liked_to_df",
+            id="facebook_pages_youve_liked",
             data_frame=pages_youve_liked_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Pages that you have liked",
@@ -893,6 +1040,11 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains a history of the Facebook Pages you have liked.",
                 "nl": "Deze tabel bevat een overzicht van de Facebookpagina's die je leuk vindt.",
             }),
+            headers={
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_posts_and_check_ins",
@@ -905,6 +1057,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows the posts and places you have checked into on Facebook.",
                 "nl": "Deze tabel toont de berichten en plaatsen waar je op Facebook hebt ingecheckt.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_story_reactions",
@@ -917,6 +1073,26 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains your reactions to Facebook Stories.",
                 "nl": "Deze tabel bevat je reacties op Facebook Stories.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+            },
+        ),
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="facebook_feed_controls",
+            data_frame=controls_to_df(facebook_zip, errors),
+            title=props.Translatable({
+                "en": "Feed controls (show more / show less)",
+                "nl": "Feed-voorkeuren (meer zien / minder zien)",
+            }),
+            description=props.Translatable({
+                "en": "This table shows the actions you've taken to customise what content you see more or less of on Facebook.",
+                "nl": "Deze tabel toont de acties die je hebt ondernomen om aan te passen welke content je meer of minder ziet op Facebook.",
+            }),
+            headers={
+                "Action": props.Translatable({"en": "Action", "nl": "Actie"}),
+                "Content": props.Translatable({"en": "Content", "nl": "Inhoud"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_content_sharing_links_you_created",
@@ -929,6 +1105,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table displays the external links you have shared on Facebook.",
                 "nl": "Deze tabel toont de externe links die je op Facebook hebt gedeeld.",
             }),
+            headers={
+                "Link": props.Translatable({"en": "Link", "nl": "Link"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum en Tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_friends",
@@ -941,6 +1121,9 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table lists your current friends on Facebook.",
                 "nl": "Deze tabel toont je huidige vrienden op Facebook.",
             }),
+            headers={
+                "Number of friends": props.Translatable({"en": "Number of friends", "nl": "Aantal vrienden op facebook"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_ads_interests",
@@ -953,6 +1136,9 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows the interests Facebook has identified for showing you personalized ads.",
                 "nl": "Deze tabel toont de interesses die Facebook heeft geïdentificeerd om je gepersonaliseerde advertenties te tonen.",
             }),
+            headers={
+                "Ad": props.Translatable({"en": "Ad", "nl": "Advertentie"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_event_responses",
@@ -965,6 +1151,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains your responses (going, interested, declined) to Facebook events.",
                 "nl": "Deze tabel bevat je reacties (gaat, geïnteresseerd, afgewezen) op Facebook-evenementen.",
             }),
+            headers={
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_group_posts_and_comments",
@@ -977,6 +1167,12 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows your posts and comments within Facebook groups.",
                 "nl": "Deze tabel toont je berichten en commentaren in Facebook-groepen.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Post": props.Translatable({"en": "Post", "nl": "Bericht"}),
+                "Date": props.Translatable({"en": "Date", "nl": "Datum"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_answers_to_membership_questions",
@@ -989,6 +1185,9 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains the answers you provided when requesting to join Facebook groups.",
                 "nl": "Deze tabel bevat de antwoorden die je hebt gegeven bij het aanvragen van lidmaatschap van Facebook-groepen.",
             }),
+            headers={
+                "Group name": props.Translatable({"en": "Group name", "nl": "Groepsnaam"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comments_in_groups",
@@ -1001,6 +1200,12 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table specifically lists the comments you have made in Facebook groups.",
                 "nl": "Deze tabel toont specifiek de commentaren die je in Facebook-groepen hebt geplaatst.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Comment": props.Translatable({"en": "Comment", "nl": "Reactie"}),
+                "Group": props.Translatable({"en": "Group", "nl": "Groep"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_saved_items",
@@ -1013,6 +1218,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table contains the posts, videos, and other content you have saved on Facebook.",
                 "nl": "Deze tabel bevat de berichten, video's en andere content die je op Facebook hebt opgeslagen.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_comments",
@@ -1025,6 +1234,11 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table shows all the comments you have made on Facebook posts and other content.",
                 "nl": "Deze tabel toont alle commentaren die je op Facebook-berichten en andere content hebt geplaatst.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Comment": props.Translatable({"en": "Comment", "nl": "Reactie"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comment_active_days",
@@ -1037,6 +1251,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table indicates the days on which you made comments on Facebook.",
                 "nl": "Deze tabel toont de dagen waarop je commentaren op Facebook hebt geplaatst.",
             }),
+            headers={
+                "Label": props.Translatable({"en": "Label", "nl": "Label"}),
+                "Value": props.Translatable({"en": "Value", "nl": "Waarde"}),
+            },
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_pages",
@@ -1049,6 +1267,11 @@ def extraction(facebook_zip: str) -> ExtractionResult:
                 "en": "This table lists the Facebook Pages that you administer.",
                 "nl": "Deze tabel toont de Facebookpagina's die je beheert.",
             }),
+            headers={
+                "Name": props.Translatable({"en": "Name", "nl": "Naam"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
         ),
     ]
     return ExtractionResult(
@@ -1060,10 +1283,10 @@ def extraction(facebook_zip: str) -> ExtractionResult:
 class FacebookFlow(FlowBuilder):
     def __init__(self, session_id: str):
         super().__init__(session_id, "Facebook")
-        
+
     def validate_file(self, file):
         return validate.validate_zip(DDP_CATEGORIES, file)
-        
+
     def extract_data(self, file_value, validation):
         return extraction(file_value)
 
