@@ -1,252 +1,245 @@
 # PII-Safe Logging for Multi-Module Extraction Architecture
 
 **Date:** 2026-03-20
+**Status:** Proposed revision to `2026-03-20-pii-safe-logging-design.md`
 **ADR:** python-architecture/AD0009 (exception safety), python-architecture/AD0008 (log forwarding scope)
-**Scope:** Redesign log forwarding to prevent PII leakage while providing flow observability
+**Scope:** Redesign log forwarding to prevent PII leakage while preserving minimal flow observability
 
 ## Context
 
-The log forwarding system (PR #663 in eyra/feldspar) forwards Python log messages to mono via `CommandSystemLog` → HTTP POST to `/api/feldspar/log` → AppSignal. In Eyra's single-file model, the handler is scoped to `port.script` — the only file that exists. Our multi-module architecture (script.py → FlowBuilder → platforms → helpers) widened this to `port`, which captured extraction_helpers ERROR logs containing file paths with PII (contact names in Facebook DDP directory structure) and triggered 429 rate limiting on mono.
+The current implementation forwards Python logs from the `port` logger tree to mono via `CommandSystemLog` and `/api/feldspar/log`.
 
-### PII exposure paths identified
+This is not theoretical. The observed browser logs in `~/logs/ddt6.log` and `~/logs/ddt7.log` show concrete forwarding of:
 
-1. **Explicit logger calls:** `logger.error("Exception caught: %s", e)` where `e` contains participant data (Python exceptions routinely include the offending input in their message). Present in extraction_helpers and all 9 platform files. These are researcher/developer-written calls.
+- `port.helpers.uploads: PayloadFile: wrote 64247155 bytes to /tmp/facebook-3y-download-2026-03-10.zip`
+- `port.helpers.validate: Detected DDP category: json_en`
+- `port.helpers.extraction_helpers: File not found: who_you_ve_followed.json: File not found in zip`
+- `port.platforms.facebook: Exception caught: 'following_v3'`
 
-2. **Uncaught exceptions (Eyra framework-level):** In eyra/feldspar develop, uncaught Python exceptions propagate to Pyodide → JS worker → `worker_engine.ts` logs via `LogForwarder` → `bridge.sendLogs()` → mono. Full stack trace forwarded without consent. Our fork mitigates this at the Python level via ScriptWrapper's `except Exception` catch (AD0009). **Remaining risk:** If Pyodide itself throws (out-of-memory, WebAssembly trap, or Pyodide glue code error that bypasses Python's exception mechanism), `py_worker.js` catches it and `worker_engine.ts` forwards `error.toString()` and the stack trace via the JS-side `LogForwarder`. This JS-level path is outside our control — it's in feldspar's framework code. Reported to Eyra on 2026-03-20.
+The same run produces repeated `POST https://next.eyra.co/api/feldspar/log 429` responses, confirming the current design creates both a privacy problem and a rate-limit problem.
 
-3. **Debug-level zip enumeration:** `extraction_helpers.extract_file_from_zip()` logs every file in the zip at DEBUG level. A Facebook DDP contains thousands of files with paths like `messages/inbox/contactname_12345/videos/file.mp4`. Currently blocked by INFO handler level, but this protection is fragile — any handler level change would expose them.
+### Exposure paths confirmed
 
-### What we need from logging
+1. **Explicit logger calls in Python code**
 
-- **Flow milestones:** Where the participant is in the process, sent as they happen (not batched). Critical because the iframe may crash before end-of-flow, and we need to know how far they got.
-- **Extraction error summary:** Per-error-type counts after extraction completes. Not individual error messages (which may contain PII).
-- **Local diagnostics:** Full error messages in browser console for developer debugging. Never forwarded.
+   These are currently forwarded automatically because the handler is attached to `port`, not to a dedicated safe logger. The observed examples include:
 
-### Supersedes extraction consolidation spec logging decision
+   - shared infrastructure: `port.helpers.uploads`, `port.helpers.validate`
+   - shared extraction helpers: `port.helpers.extraction_helpers`
+   - platform code: `port.platforms.facebook`
 
-The extraction consolidation spec (2026-03-17) changed `add_log_handler()` from `port.script` to `port`. This design supersedes that decision — the scope changes to `port.bridge` instead. The `port` scope was the correct intent (capture logs from the multi-module architecture) but the wrong mechanism (captured everything including PII-containing diagnostic logs).
+   This is the main active exposure path in the current fork.
+
+2. **High-volume helper diagnostics**
+
+   `extraction_helpers` emits many per-file and per-error logs. In `ddt7.log`, repeated helper errors alone are enough to drive `/api/feldspar/log` into `429` responses. Even when a given message is not directly identifying, this volume is operationally unsafe.
+
+3. **Framework-level uncaught exception path**
+
+   AD0009 is still correct: uncaught Python exceptions must not be allowed to escape to the JS-side logging path without consent. That remains an upstream/framework risk to track with Eyra.
+
+   For this spec, the design must not rely on JS-side truncation, bridge behavior, or current worker implementation details as a privacy control.
+
+## What we need from logging
+
+- **Flow milestones:** a small number of PII-free status messages, forwarded immediately
+- **Extraction summary:** aggregated error counts only, never raw exception text
+- **Local diagnostics:** full messages can remain local to the browser/runtime for debugging, but they must not cross the bridge automatically
 
 ## Decision
 
-### Two-logger architecture
+### 1. Use a dedicated bridge logger
 
-**`port.bridge`** — dedicated logger for messages safe to forward to the host platform. `LogForwardingHandler` attaches only to this logger. Only FlowBuilder and script.py write to it. Messages on this logger are designed to be PII-free.
+Forwarded logs must come only from `port.bridge`.
 
-**`__name__` loggers** (e.g. `port.helpers.extraction_helpers`, `port.platforms.facebook`) — standard Python loggers for local diagnostic output. These appear in the browser console but are never forwarded because no handler is attached to them or their parents that forwards to the bridge.
-
-### Implementation: LogForwardingHandler scope
+`ScriptWrapper.add_log_handler()` changes from `port` to `port.bridge`:
 
 ```python
-# main.py
 def add_log_handler(self, logger_name: str = "port.bridge") -> None:
     logger = logging.getLogger(logger_name)
     logger.setLevel(logging.DEBUG)
+    logger.propagate = False
+
     handler = LogForwardingHandler(self.queue)
+    handler.setLevel(logging.INFO)
     handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
     logger.addHandler(handler)
 ```
 
-The handler attaches to `port.bridge`, not `port`. No propagation issues — `port.bridge` is a leaf logger with no children.
+Two requirements matter here:
 
-### Implementation: Bridge logger usage
+- `logger_name` must be `port.bridge`, not `port`
+- `logger.propagate = False` must be set so a future parent handler cannot accidentally re-forward bridge messages or duplicate them
 
-FlowBuilder and script.py import and use the bridge logger:
+### 2. Reserve `port.bridge` for a tiny safe vocabulary
 
-```python
-# In flow_builder.py and script.py
-bridge_logger = logging.getLogger("port.bridge")
-```
+Only `script.py` and `FlowBuilder` may log to `port.bridge`.
 
-The existing `logger = logging.getLogger(__name__)` stays for local diagnostics.
+Platform modules and helper modules keep using `logging.getLogger(__name__)`, but those logs remain local-only.
 
-### Implementation: Non-propagating content logger
+Bridge messages must never include:
 
-```python
-# In extraction_helpers.py
-content_logger = logging.getLogger("port.helpers.extraction_helpers.content")
-content_logger.propagate = False
-content_logger.addHandler(logging.NullHandler())
-```
+- participant-provided content
+- DDP file names or internal paths
+- local filesystem paths
+- raw exception strings
+- traceback text
+- donation keys or session-derived identifiers
 
-Replace `logger.debug("Contained in zip: %s", f)` with `content_logger.debug(...)`. This logger produces zero output unless a developer explicitly attaches a handler. Setting `propagate = False` means even if someone attaches a forwarding handler to `port` or `port.helpers`, these messages never reach it.
+### 3. Keep flow milestones, but make them privacy-safe
 
-## Flow Milestones
+Allowed examples:
 
-All emitted by FlowBuilder via `bridge_logger.info()` at each step of `start_flow()`:
-
-```
+```text
+Starting platform: LinkedIn
 [LinkedIn] File received: 161016 bytes, PayloadFile
 [LinkedIn] Validation: valid (json_en)
 [LinkedIn] Extraction complete: 5 tables, 127 rows; errors: none
 [LinkedIn] Consent form shown
 [LinkedIn] Consent: accepted
-[LinkedIn] Donation started: key=sess-123-linkedin, size=418771
+[LinkedIn] Donation started: payload size=418771 bytes
 [LinkedIn] Donation result: success
-```
-
-And by script.py:
-```
-Starting platform: LinkedIn
 Study complete
 ```
 
-### What is NOT logged to the bridge
+Not allowed:
 
-- File paths from DDP contents
-- Raw exception messages
-- Individual extraction errors
-- Any string derived from participant data
+- `key=sess-123-linkedin`
+- `/tmp/facebook-3y-download-2026-03-10.zip`
+- `who_you_ve_followed.json`
+- `"Exception caught: 'following_v3'"`
 
-## ExtractionResult Dataclass
+### 4. Aggregate errors where they are currently swallowed
 
-`extract_data()` return type changes from `list[PropsUIPromptConsentFormTableViz]` to:
+The original spec was too optimistic about platform-level `try/except` blocks.
+
+Today, many failures are swallowed inside shared helpers such as:
+
+- `extract_file_from_zip()`
+- `_read_json()` / `read_json_from_bytes()`
+- `read_csv_from_bytes()`
+- timestamp conversion helpers
+
+If those helpers keep catching exceptions and returning fallback values, platform code will never see the original failure and cannot count it accurately afterward.
+
+Therefore the aggregation boundary must include shared helpers.
+
+## ExtractionResult
+
+`extract_data()` returns:
 
 ```python
 from collections import Counter
+from dataclasses import dataclass
 
 @dataclass
 class ExtractionResult:
     tables: list[PropsUIPromptConsentFormTableViz]
-    errors: Counter[str]  # e.g. Counter({"FileNotFound": 8, "JSONDecodeError": 4})
+    errors: Counter[str]
 ```
 
-Uses `Counter` rather than bare `dict` — the `errors[type(e).__name__] += 1` pattern is cleaner and less error-prone across 9 platform implementations.
+### Error-counting rule
 
-This lives in `port/api/d3i_props.py` (alongside the table types it references).
+If a helper swallows an error locally, it must increment the shared `Counter` before returning its fallback value.
 
-### Platform extraction function changes
-
-Each platform's `extraction()` function changes to collect error counts. The existing pattern:
+Example shape:
 
 ```python
-# Current: individual errors logged, empty DataFrame returned
-try:
-    items = d["following_v3"]
+def extract_file_from_zip(
+    zfile: str,
+    file_to_extract: str,
+    errors: Counter[str] | None = None,
+) -> io.BytesIO:
     ...
-except Exception as e:
-    logger.error("Exception caught: %s", e)
-return out  # empty DataFrame
+    except FileNotFoundInZipError as e:
+        logger.error("File not found: %s: %s", file_to_extract, e)
+        if errors is not None:
+            errors["FileNotFoundInZipError"] += 1
 ```
 
-Becomes:
+Platform-level handlers still increment the same counter for failures they catch directly.
+
+This preserves current local diagnostics while making the forwarded summary truthful.
+
+### FlowBuilder summary
+
+FlowBuilder logs only the aggregate:
 
 ```python
-# New: errors counted, still logged locally, returned in result
-errors: dict[str, int] = {}
-...
-try:
-    items = d["following_v3"]
-    ...
-except KeyError as e:
-    logger.error("Exception caught: %s", e)  # local diagnostic, unchanged
-    errors["KeyError"] = errors.get("KeyError", 0) + 1
-except Exception as e:
-    logger.error("Exception caught: %s", e)
-    errors["Exception"] = errors.get("Exception", 0) + 1
-
-return ExtractionResult(
-    tables=[t for t in tables if not t.data_frame.empty],
-    errors=errors,
-)
-```
-
-### Netflix generator edge case
-
-Netflix's `extract_data()` uses `yield` for a profile selection radio prompt (multiple Netflix profiles in one DDP). This makes it a generator, not a regular function — it cannot simply `return ExtractionResult(...)`.
-
-**Resolution:** FlowBuilder detects generator returns and handles them with `yield from`, same as the old FlowBuilder did (the removed `isinstance(self.table_list, Generator)` check). The extraction result is obtained via `StopIteration.value` when the generator exhausts:
-
-```python
-# step 6: Extract
-raw_result = self.extract_data(path, validation)
-if isinstance(raw_result, Generator):
-    result = yield from raw_result
-else:
-    result = raw_result
-```
-
-Netflix's `extract_data()` would `yield` for the radio prompt, then `return ExtractionResult(...)` at the end. All other platforms return `ExtractionResult` directly.
-
-### WhatsApp extraction pattern note
-
-WhatsApp's `extraction()` receives a pre-parsed DataFrame rather than a zip path. The error-counting pattern still applies but typical exceptions differ (DataFrame column `KeyError` rather than `FileNotFoundError` or `JSONDecodeError`). The platform implementation should use error type names that reflect the actual failures, not copy the zip-based example verbatim.
-
-### FlowBuilder changes
-
-```python
-# step 6: Extract
-raw_result = self.extract_data(path, validation)
-if isinstance(raw_result, Generator):
-    result = yield from raw_result
-else:
-    result = raw_result
-
-# step 7: Log extraction summary via bridge
 total_rows = sum(len(t.data_frame) for t in result.tables)
+
 if result.errors:
     error_summary = ", ".join(f"{k}×{v}" for k, v in result.errors.items())
-    bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: %s",
-                       self.platform_name, len(result.tables), total_rows, error_summary)
+    bridge_logger.info(
+        "[%s] Extraction complete: %d tables, %d rows; errors: %s",
+        self.platform_name,
+        len(result.tables),
+        total_rows,
+        error_summary,
+    )
 else:
-    bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: none",
-                       self.platform_name, len(result.tables), total_rows)
-
-# step 8: check for empty
-if not result.tables:
-    ...
+    bridge_logger.info(
+        "[%s] Extraction complete: %d tables, %d rows; errors: none",
+        self.platform_name,
+        len(result.tables),
+        total_rows,
+    )
 ```
 
-## File Changes
+## Content enumeration logs
+
+Zip-entry enumeration is especially sensitive because paths can contain names and because the volume is large.
+
+For any helper that enumerates archive contents for debugging, use a dedicated non-propagating logger:
+
+```python
+content_logger = logging.getLogger("port.helpers.extraction_helpers.content")
+content_logger.propagate = False
+content_logger.addHandler(logging.NullHandler())
+```
+
+Apply the same pattern to `validate.py` if zip-entry enumeration is kept there.
+
+This is defense in depth. The primary privacy boundary is still that forwarding attaches only to `port.bridge`.
+
+## File impact
 
 ### Modified files
-- `port/main.py` — handler scope `port.bridge` (from `port`)
-- `port/helpers/flow_builder.py` — add `bridge_logger`, flow milestone logs, handle `ExtractionResult`
-- `port/script.py` — add `bridge_logger` for platform start and study complete
-- `port/api/d3i_props.py` — add `ExtractionResult` dataclass
-- `port/helpers/extraction_helpers.py` — non-propagating content logger, replace `logger.debug("Contained in zip: ...")` calls. The existing 12+ `logger.error()` calls throughout extraction_helpers are intentionally left unchanged as local-only diagnostics — they use the `__name__` logger which has no bridge handler attached. Their error information reaches the bridge only via the aggregated `ExtractionResult.errors` counts returned by the platform callers.
-- `port/platforms/instagram.py` — `extraction()` returns `ExtractionResult` with error counts
-- `port/platforms/facebook.py` — same
-- `port/platforms/tiktok.py` — same
-- `port/platforms/youtube.py` — same
-- `port/platforms/linkedin.py` — same
-- `port/platforms/netflix.py` — same
-- `port/platforms/chatgpt.py` — same
-- `port/platforms/whatsapp.py` — same
-- `port/platforms/x.py` — same
-- `tests/test_main_queue.py` — update logger scope from `port` to `port.bridge`
-- `tests/test_flow_builder.py` — update for `ExtractionResult` return type
 
-### New files
-- None
+- `packages/python/port/main.py`
+- `packages/python/port/helpers/flow_builder.py`
+- `packages/python/port/script.py`
+- `packages/python/port/api/d3i_props.py`
+- `packages/python/port/helpers/extraction_helpers.py`
+- `packages/python/port/helpers/validate.py`
+- `packages/python/port/platforms/*.py`
+- `packages/python/tests/test_main_queue.py`
+- `packages/python/tests/test_flow_builder.py`
 
-### Not changed
-- `port/api/logging.py` — `LogForwardingHandler` unchanged
-- `port/helpers/validate.py` — unchanged
-- `port/helpers/port_helpers.py` — unchanged
+### Unchanged but now protected by scope change
 
-## Compatibility with future error donation page
+- `packages/python/port/helpers/uploads.py`
 
-The error donation page (out of scope) will show full error details to the participant and ask for consent to donate. This design is compatible:
+Its current info log contains a local path and original filename, which is unsafe to forward. After the scope change it stays local-only.
 
-- **Automatic path (this design):** Scrubbed error counts forwarded via bridge_logger. Always on, PII-free.
-- **Voluntary path (future):** Full error details collected in `ExtractionResult.errors` could be extended to include messages (not just counts) and shown to the participant via a consent UI. The `error_flow()` pattern in main.py already demonstrates this for uncaught exceptions.
+## Required tests
 
-The `ExtractionResult` dataclass can be extended with an optional `error_details: list[str]` field when the error donation page is built. These details would never go through bridge_logger — only through the consent-gated donation path.
+The design is not complete without regression tests.
 
-### Note on error_flow() in main.py
+1. `port.bridge` logs are forwarded as `CommandSystemLog`
+2. `port.platforms.facebook` logs are not forwarded
+3. `port.helpers.uploads` logs are not forwarded
+4. `port.bridge` has `propagate = False`
+5. content loggers do not forward even if a broader parent handler is attached
+6. helper-originated failures increment `ExtractionResult.errors`
 
-`error_flow()` already shows full tracebacks to the participant and can donate them via `CommandSystemDonate` with participant consent. The traceback text rendered in the UI (`PropsUIPromptText`) may contain PII from exception messages. This is acceptable because: (a) it goes through explicit participant consent ("Would you like to report this error?"), (b) it uses the donation path (`CommandSystemDonate`), not the logging path (`CommandSystemLog`), and (c) the participant can see what they're sharing. This is distinct from the automatic bridge logging path which has no consent gate.
+## Rationale
 
-## ADR Updates
+This is the correct approach for the current problem because it fixes the active exposure path shown in `ddt7.log`:
 
-- **python-architecture/AD0008**: Update to reflect `port.bridge` scope instead of `port`
-- **python-architecture/AD0009**: Already committed — documents ScriptWrapper exception catch as PII safety boundary
+- it stops forwarding raw helper and platform diagnostics
+- it keeps a small observability channel for milestones
+- it avoids forwarding exception text and filenames
+- it reduces log volume enough to avoid the observed `429` storm
 
-## Design Principles
-
-1. **PII never crosses the bridge unsanitized via Python logging** — bridge_logger messages are designed to be PII-free. Remaining risk: Pyodide-level crashes may forward stack traces via the JS-side LogForwarder path (outside our control, reported to Eyra)
-2. **Explicit opt-in for bridge forwarding** — code must deliberately use bridge_logger; accidental forwarding is impossible
-3. **Local diagnostics preserved** — `__name__` loggers keep full error messages in browser console
-4. **Milestones sent as they happen** — immediate forwarding, not batched, because iframe crashes lose buffered data
-5. **Error counts, not error messages** — the bridge gets "KeyError×3", not the KeyError's content
-6. **Content enumeration isolated** — zip file listing uses non-propagating logger, inert by default
+The remaining JS/framework exception path is a separate boundary to track with Eyra, but it is not a reason to keep forwarding the current Python logger tree.

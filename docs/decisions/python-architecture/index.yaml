@@ -142,6 +142,8 @@ decisions:
             - bridge
         links:
             precedes: []
+            revised by:
+                - "0010"
             succeeds: []
         comments:
             - author: Danielle McCool
@@ -168,3 +170,21 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-20 13:12:24"
               comment: "2"
+    "0010":
+        adr_id: "0010"
+        title: Forward logs from the port package not only port.script (Revised)
+        status: decided
+        tags:
+            - logging
+            - observability
+            - bridge
+            - pii-safety
+        links:
+            precedes: []
+            revises:
+                - "0008"
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-20 13:42:06"
+              comment: "1"
