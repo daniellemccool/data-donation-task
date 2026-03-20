@@ -3,7 +3,8 @@ This module contains helper functions that can be used during the data extractio
 """ 
 import math
 import re
-import logging 
+import logging
+from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Callable
 from pathlib import Path
@@ -17,6 +18,13 @@ import numpy as np
 
 
 logger = logging.getLogger(__name__)
+
+# Non-propagating logger for zip content enumeration.
+# Contains PII (contact names in file paths). Inert by default —
+# a developer must explicitly attach a handler in a debug session.
+content_logger = logging.getLogger(f"{__name__}.content")
+content_logger.propagate = False
+content_logger.addHandler(logging.NullHandler())
 
 
 def dict_denester(inp: dict[Any, Any] | list[Any], new: dict[Any, Any] | None = None, name: str = "", run_first: bool = True) -> dict[Any, Any]:
@@ -154,7 +162,7 @@ def json_dumper(zfile: str) -> pd.DataFrame:
     try:
         with zipfile.ZipFile(zfile, "r") as zf:
             for f in zf.namelist():
-                logger.debug("Contained in zip: %s", f)
+                content_logger.debug("Contained in zip: %s", f)
                 fp = Path(f)
                 if fp.suffix == ".json":
                     b = io.BytesIO(zf.read(f))
@@ -226,7 +234,7 @@ def replace_months(input_string: str) -> str:
     return input_string
 
 
-def epoch_to_iso(epoch_timestamp: str | int | float) -> str:
+def epoch_to_iso(epoch_timestamp: str | int | float, errors: Counter | None = None) -> str:
     """
     Convert epoch timestamp to an ISO 8601 string, assuming UTC.
 
@@ -246,10 +254,12 @@ def epoch_to_iso(epoch_timestamp: str | int | float) -> str:
     """
     out = str(epoch_timestamp)
     try:
-        epoch_timestamp = int(float(epoch_timestamp)) 
+        epoch_timestamp = int(float(epoch_timestamp))
         out = datetime.fromtimestamp(epoch_timestamp, tz=timezone.utc).isoformat()
     except (OverflowError, OSError, ValueError, TypeError) as e:
         logger.error("Could not convert epoch time timestamp, %s", e)
+        if errors is not None:
+            errors["TimestampParseError"] += 1
 
     return out
 
@@ -311,27 +321,18 @@ class FileNotFoundInZipError(Exception):
     """
 
 
-def extract_file_from_zip(zfile: str, file_to_extract: str) -> io.BytesIO:
+def extract_file_from_zip(zfile: str, file_to_extract: str, errors: Counter | None = None) -> io.BytesIO:
     """
     Extracts a specific file from a zipfile and returns it as a BytesIO buffer.
 
     Args:
         zfile (str): Path to the zip file.
         file_to_extract (str): Name or path of the file to extract from the zip.
+        errors (Counter | None): Optional counter for aggregating error types.
 
     Returns:
         io.BytesIO: A BytesIO buffer containing the extracted file's content of the first file found.
                     Returns an empty BytesIO if the file is not found or an error occurs.
-
-    Raises:
-        FileNotFoundInZipError: Logs an error if the specified file is not found in the zip.
-        zipfile.BadZipFile: Logs an error if the zip file is invalid.
-        Exception: Logs any other unexpected errors.
-
-    Examples::
-
-        >>> extracted_file = extract_file_from_zip("archive.zip", "data.txt")
-        >>> content = extracted_file.getvalue().decode('utf-8')
     """
 
     file_to_extract_bytes = io.BytesIO()
@@ -341,7 +342,7 @@ def extract_file_from_zip(zfile: str, file_to_extract: str) -> io.BytesIO:
             file_found = False
 
             for f in zf.namelist():
-                logger.debug("Contained in zip: %s", f)
+                content_logger.debug("Contained in zip: %s", f)
                 if re.match(rf"^.*{re.escape(file_to_extract)}$", f):
                     file_to_extract_bytes = io.BytesIO(zf.read(f))
                     file_found = True
@@ -352,10 +353,16 @@ def extract_file_from_zip(zfile: str, file_to_extract: str) -> io.BytesIO:
 
     except zipfile.BadZipFile as e:
         logger.error("BadZipFile:  %s", e)
+        if errors is not None:
+            errors["BadZipFile"] += 1
     except FileNotFoundInZipError as e:
         logger.error("File not found:  %s: %s", file_to_extract, e)
+        if errors is not None:
+            errors["FileNotFoundInZipError"] += 1
     except Exception as e:
         logger.error("Exception was caught:  %s", e)
+        if errors is not None:
+            errors["Exception"] += 1
 
     finally:
         return file_to_extract_bytes
@@ -406,7 +413,7 @@ def _json_reader_file(json_file: str, encoding: str) -> Any:
     return result
 
 
-def _read_json(json_input: Any, json_reader: Callable[[Any, str], Any]) -> dict[Any, Any] | list[Any]:
+def _read_json(json_input: Any, json_reader: Callable[[Any, str], Any], errors: Counter | None = None) -> dict[Any, Any] | list[Any]:
     """
     Reads JSON input using the provided json_reader function, trying different encodings.
     This function should not be used directly.
@@ -414,21 +421,11 @@ def _read_json(json_input: Any, json_reader: Callable[[Any, str], Any]) -> dict[
     Args:
         json_input (Any): The JSON input (can be bytes or file path).
         json_reader (Callable[[Any, str], Any]): A function to read the JSON input.
+        errors (Counter | None): Optional counter for aggregating error types.
 
     Returns:
         dict[Any, Any] | list[Any]: The parsed JSON data as a dictionary or list.
                                     Returns an empty dictionary if parsing fails.
-
-    Raises:
-        TypeError: Logs an error if the parsed result is not a dict or list.
-        json.JSONDecodeError: Logs an error if JSON decoding fails.
-        Exception: Logs any other unexpected errors.
-
-    Examples::
-
-        >>> data = _read_json(b'{"key": "value"}', _json_reader_bytes)
-        >>> print(data)
-        {'key': 'value'}
     """
 
     out: dict[Any, Any] | list[Any] = {}
@@ -447,17 +444,23 @@ def _read_json(json_input: Any, json_reader: Callable[[Any, str], Any]) -> dict[
 
         except json.JSONDecodeError:
             logger.error("Cannot decode json with encoding: %s", encoding)
+            if errors is not None:
+                errors["JSONDecodeError"] += 1
         except TypeError as e:
             logger.error("%s, could not convert json bytes", e)
+            if errors is not None:
+                errors["TypeError"] += 1
             break
         except Exception as e:
             logger.error("%s, could not convert json bytes", e)
+            if errors is not None:
+                errors["Exception"] += 1
             break
 
     return out
 
 
-def read_json_from_bytes(json_bytes: io.BytesIO) -> dict[Any, Any] | list[Any]:
+def read_json_from_bytes(json_bytes: io.BytesIO, errors: Counter | None = None) -> dict[Any, Any] | list[Any]:
     """
     Reads JSON data from a BytesIO buffer.
 
@@ -478,9 +481,11 @@ def read_json_from_bytes(json_bytes: io.BytesIO) -> dict[Any, Any] | list[Any]:
     out: dict[Any, Any] | list[Any] = {}
     try:
         b = json_bytes.read()
-        out = _read_json(b, _json_reader_bytes)
+        out = _read_json(b, _json_reader_bytes, errors=errors)
     except Exception as e:
         logger.error("%s, could not convert json bytes", e)
+        if errors is not None:
+            errors["Exception"] += 1
 
     return out
 
@@ -506,23 +511,17 @@ def read_json_from_file(json_file: str) -> dict[Any, Any] | list[Any]:
     return out
 
 
-def read_csv_from_bytes(json_bytes: io.BytesIO) -> list[dict[Any, Any]]:
+def read_csv_from_bytes(json_bytes: io.BytesIO, errors: Counter | None = None) -> list[dict[Any, Any]]:
     """
     Reads CSV data from a BytesIO buffer and returns it as a list of dictionaries.
 
     Args:
         json_bytes (io.BytesIO): A BytesIO buffer containing CSV data.
+        errors (Counter | None): Optional counter for aggregating error types.
 
     Returns:
         list[dict[Any, Any]]: A list of dictionaries, where each dictionary represents a row in the CSV.
                               Returns an empty list if parsing fails.
-
-    Examples:
-
-        >>> buffer = io.BytesIO(b'name,age\\nAlice,30\\nBob,25')
-        >>> data = read_csv_from_bytes(buffer)
-        >>> print(data)
-        [{'name': 'Alice', 'age': '30'}, {'name': 'Bob', 'age': '25'}]
     """
     out: list[dict[Any, Any]] = []
 
@@ -535,6 +534,8 @@ def read_csv_from_bytes(json_bytes: io.BytesIO) -> list[dict[Any, Any]]:
 
     except Exception as e:
         logger.error("%s, could not convert csv bytes", e)
+        if errors is not None:
+            errors["CSVDecodeError"] += 1
 
     finally:
         return out

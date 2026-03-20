@@ -14,6 +14,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Non-propagating logger for zip content enumeration (defense in depth).
+content_logger = logging.getLogger(f"{__name__}.content")
+content_logger.propagate = False
+content_logger.addHandler(logging.NullHandler())
+
 
 class Language(Enum):
     """
@@ -233,7 +238,7 @@ def validate_zip(ddp_categories: list[DDPCategory], path_to_zip: str) -> Validat
         with zipfile.ZipFile(path_to_zip, "r") as zf:
             for f in zf.namelist():
                 p = Path(f)
-                logger.debug("Found: %s in zip", p.name)
+                content_logger.debug("Found: %s in zip", p.name)
                 paths.append(p.name)
 
         validate.infer_ddp_category(paths)
