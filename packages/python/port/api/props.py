@@ -1,20 +1,24 @@
 from dataclasses import dataclass
-from typing import Optional, TypedDict, Union, Any
+from typing import NotRequired, Optional, TypedDict, Union, Any
 
 import pandas as pd
 
 
 class Translations(TypedDict):
-    """Typed dict containing text that is  display in a speficic language
+    """Typed dict containing text displayed in a specific language.
+
+    en and nl are required. Additional languages are optional.
+    The feldspar Translator falls back gracefully for missing locales.
 
     Attributes:
         en: English string to display
         nl: Dutch string to display
+        es: Spanish string to display (optional)
     """
 
     en: str
     nl: str
-    es: str
+    es: NotRequired[str]
 
 
 @dataclass
