@@ -7,6 +7,9 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-17 13:23:49"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-17 14:00:34"
 links:
     precedes: []
     succeeds: []
@@ -49,5 +52,4 @@ The handling must be uniform across all platforms — implemented once in shared
 We decided for [Option 1](#option-1) because: The protocol must work across both Eyra Next (structured responses) and D3I mono (fire-and-forget). PayloadResponse(success=True) means continue; PayloadResponse(success=False) means render failure page; PayloadVoid/None means legacy success; anything else is treated as failure with a warning log. This is implemented in port_helpers.handle_donate_result() and called by FlowBuilder after every donation.
 
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-17 13:23:49) Danielle McCool: More Information:
-See feldspar command_router.ts and types/modules.ts for the TypeScript side of donation result handling. See python-architecture/AD0006 for FlowBuilder consolidation.
+<a name="comment-3"></a>3. (2026-03-17 14:00:34) Danielle McCool: Protocol detail: PayloadResponse wraps the result in a value field. Python receives result.__type__ == 'PayloadResponse' with result.value containing {success: bool, key: str, status: int, error?: str}. So the correct access pattern is result.value.success — not result.success. This matches eyra/feldspar develop (commit 94ed016 — Feb 2026) where CommandRouter awaits Bridge.send() for donate commands and wraps ResponseSystemDonate in PayloadResponse. FakeBridge returns void (no pending donation tracking) so dev mode still gets PayloadVoid.

@@ -4,15 +4,19 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-13 13:30:02"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-17 14:00:37"
+date: 2026-03-13T00:00:00Z
 links:
     precedes: []
     succeeds: []
 status: accepted
-date: 2026-03-13
 tags:
     - bridge
     - iframe
     - postmessage
+    - donate-protocol
 title: Bridge abstraction with swappable implementations
 ---
 
@@ -45,4 +49,4 @@ We decided for [Option 2](#option-2) because: A bridge abstraction with swappabl
 See [python-architecture/AD0005](../python-architecture/AD0005-python-generator-protocol-for-workflow-orchestration.md) for the Python side of this communication channel.
 
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-13 13:30:02) Danielle McCool: marked decision as decided
+<a name="comment-2"></a>2. (2026-03-17 14:00:37) Danielle McCool: Bridge.send() evolution (eyra/feldspar develop — Feb 2026): Bridge.send() return type changed from void to Promise<ResponseSystemDonate | void>. For CommandSystemDonate the LiveBridge now tracks pending donations in a Map keyed by donate key and resolves when DonateSuccess/DonateError arrives via MessagePort from the host. CommandRouter awaits this for donate commands and returns PayloadResponse to Python. For non-donate system commands send() still returns void and CommandRouter returns PayloadVoid. FakeBridge returns void for all commands (backward compat). See python-architecture/AD0007 for the Python-side handling of structured donation results.

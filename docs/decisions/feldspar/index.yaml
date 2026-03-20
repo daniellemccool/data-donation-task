@@ -22,6 +22,7 @@ decisions:
             - bridge
             - iframe
             - postmessage
+            - donate-protocol
         links:
             precedes: []
             succeeds: []
@@ -29,6 +30,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-13 13:30:02"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-17 14:00:37"
+              comment: "2"
     "0003":
         adr_id: "0003"
         title: Migrate file delivery from WORKERFS path to PayloadFile reader
