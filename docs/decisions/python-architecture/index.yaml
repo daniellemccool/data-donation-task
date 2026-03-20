@@ -150,3 +150,21 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 13:24:09"
               comment: "2"
+    "0009":
+        adr_id: "0009"
+        title: Catch uncaught exceptions in ScriptWrapper as PII safety boundary
+        status: decided
+        tags:
+            - exceptions
+            - pii-safety
+            - error-handling
+        links:
+            precedes: []
+            succeeds: []
+        comments:
+            - author: Danielle McCool
+              date: "2026-03-20 13:12:24"
+              comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-20 13:12:24"
+              comment: "2"
