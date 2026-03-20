@@ -202,13 +202,43 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
             visualizations=[
                 {
                     "title": {
+                        "en": "Videos watched over time",
+                        "nl": "Bekeken video's in de loop van de tijd",
+                    },
+                    "type": "area",
+                    "group": {
+                        "column": "Timestamp",
+                        "dateFormat": "auto",
+                    },
+                    "values": [{
+                        "aggregate": "count",
+                        "label": "Count",
+                    }],
+                },
+                {
+                    "title": {
+                        "en": "Videos watched by hour of the day",
+                        "nl": "Bekeken video's per uur van de dag",
+                    },
+                    "type": "bar",
+                    "group": {
+                        "column": "Timestamp",
+                        "dateFormat": "hour_cycle",
+                        "label": "Hour of the day",
+                    },
+                    "values": [{
+                        "label": "Count",
+                    }],
+                },
+                {
+                    "title": {
                         "en": "Words in video titles you watched",
                         "nl": "Woorden in titels van bekeken video's",
                     },
                     "type": "wordcloud",
                     "textColumn": "Title",
                     "tokenize": True,
-                }
+                },
             ]
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
