@@ -14,6 +14,7 @@ import port.platforms.netflix as netflix
 import port.platforms.chatgpt as chatgpt
 import port.platforms.whatsapp as whatsapp
 import port.platforms.x as x
+import port.platforms.chrome as chrome
 
 
 def process(session_id: str, platform: str | None = None):
@@ -33,6 +34,7 @@ def process(session_id: str, platform: str | None = None):
         ("ChatGPT", chatgpt.ChatGPTFlow(session_id)),
         ("WhatsApp", whatsapp.WhatsAppFlow(session_id)),
         ("X", x.XFlow(session_id)),
+        ("Chrome", chrome.ChromeFlow(session_id)),
     ]
 
     platforms = filter_platforms(all_platforms, platform)
