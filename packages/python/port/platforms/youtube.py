@@ -4,8 +4,9 @@ YouTube
 This module provides an example flow of a YouTube data donation study
 
 Assumptions:
-It handles DDPs in the dutch and english language with filetype JSON.
+It handles DDPs in the Dutch and English language with filetype JSON.
 """
+import json
 import logging
 from collections import Counter
 
@@ -31,21 +32,23 @@ DDP_CATEGORIES = [
     DDPCategory(
         id="json_en",
         ddp_filetype=DDPFiletype.JSON,
-        language=Language.NL,
+        language=Language.EN,
         known_files=[
-            "abonnementen.csv",
-            "kijkgeschiedenis.json",
-            "zoekgeschiedenis.json",
+            "search-history.json",
+            "watch-history.json",
+            "subscriptions.csv",
+            "comments.csv",
         ],
     ),
     DDPCategory(
         id="json_nl",
         ddp_filetype=DDPFiletype.JSON,
-        language=Language.EN,
+        language=Language.NL,
         known_files=[
-            "search-history.json",
-            "watch-history.json",
-            "subscriptions.cs",
+            "abonnementen.csv",
+            "kijkgeschiedenis.json",
+            "zoekgeschiedenis.json",
+            "reacties.csv",
         ],
     ),
 ]
@@ -75,7 +78,7 @@ def watch_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
                 item.get("time", ""),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Titel", "Link" ,"Datum en tijd"]) # pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Title", "URL", "Timestamp"])  # pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -104,10 +107,12 @@ def search_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
         for item in d:
             datapoints.append((
                 item.get("title", ""),
+                item.get("titleUrl", ""),
                 item.get("time", ""),
+                bool(item.get("details") or []),
             ))
 
-        out = pd.DataFrame(datapoints, columns=["Zoekterm", "Datum en tijd"]) # pyright: ignore
+        out = pd.DataFrame(datapoints, columns=["Title", "URL", "Timestamp", "Ad"])  # pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -118,7 +123,8 @@ def search_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
 
 def subscriptions_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFrame:
     """
-    Parses 'subscriptions.csv' or 'abonnementen.csv' from Youtube DDP
+    Parses 'subscriptions.csv' or 'abonnementen.csv' from a YouTube DDP.
+    Normalises column names to English regardless of export language.
     """
 
     if validation.current_ddp_category.language == Language.NL:
@@ -129,8 +135,48 @@ def subscriptions_to_df(youtube_zip: str, validation, errors: Counter) -> pd.Dat
     else:
         file_name = ""
 
-    ratings_bytes = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(ratings_bytes)
+    b = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
+    df = eh.read_csv_from_bytes_to_df(b)
+
+    if not df.empty:
+        df.columns = ["Channel Id", "Channel URL", "Channel Name"]  # pyright: ignore
+
+    return df
+
+
+def _parse_comment_text(raw: str) -> str:
+    try:
+        segments = json.loads(f"[{raw}]")
+        return " ".join(s["text"] for s in segments if isinstance(s, dict) and s.get("text", "").strip())
+    except Exception:
+        return raw
+
+
+def comments_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFrame:
+    if validation.current_ddp_category.language == Language.NL:
+        file_name = "reacties.csv"
+    else:
+        file_name = "comments.csv"
+
+    b = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
+    df = eh.read_csv_from_bytes_to_df(b)
+
+    if not df.empty:
+        # Normalise NL column names to English
+        df = df.rename(columns={
+            "Reactie-ID": "Comment ID",
+            "Kanaal-ID": "Channel ID",
+            "Aanmaaktijdstempel reactie": "Timestamp",
+            "Comment create timestamp": "Timestamp",
+            "Prijs": "Price",
+            "Video-ID": "Video ID",
+            "Reactietekst": "Comment text",
+        })
+        keep = ["Timestamp", "Channel ID", "Comment text", "Comment ID", "Video ID", "Price"]
+        df = df[[col for col in keep if col in df.columns]]  # pyright: ignore
+        if "Comment text" in df.columns:
+            df["Comment text"] = df["Comment text"].apply(_parse_comment_text)
+
     return df
 
 
@@ -138,65 +184,112 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
     errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="youtube_kijkgeschiedenis",
+            id="youtube_watch_history",
             data_frame=watch_history_to_df(zip, validation, errors),
             title=props.Translatable({
-                "nl": "Your watch history",
-                "en": "Your watch history"
+                "en": "Your watch history",
+                "nl": "Je kijkgeschiedenis",
             }),
             description=props.Translatable({
-                "en": "List of videos you've watched on YouTube with dates and timestamps", 
-                "nl": "Lijst van video's die je op YouTube hebt bekeken met datums en tijdstippen"
+                "en": "Videos you have watched on YouTube, including timestamps.",
+                "nl": "Video's die je op YouTube hebt bekeken, inclusief tijdstippen.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+            },
             visualizations=[
                 {
                     "title": {
-                        "en": "Wordcloud of the words in the video title, large words mean they occur more frequently in titles", 
-                        "nl": "Wordcloud of the words in the video title, large words mean they occur more frequently in titles"
+                        "en": "Words in video titles you watched",
+                        "nl": "Woorden in titels van bekeken video's",
                     },
                     "type": "wordcloud",
-                    "textColumn": "Titel",
+                    "textColumn": "Title",
                     "tokenize": True,
                 }
             ]
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="youtube_zoekgeschiedenis",
+            id="youtube_search_history",
             data_frame=search_history_to_df(zip, validation, errors),
             title=props.Translatable({
-                "nl": "Your search history",
-                "en": "Your search history"
+                "en": "Your search and watch history",
+                "nl": "Je zoek- en kijkgeschiedenis",
             }),
             description=props.Translatable({
-                "en": "Record of search terms you've used on YouTube", 
-                "nl": "Overzicht van zoektermen die je hebt gebruikt op YouTube"
+                "en": "Your search queries, videos watched, and ads seen on YouTube, with timestamps.",
+                "nl": "Je zoekopdrachten, bekeken video's en geziene advertenties op YouTube, met tijdstippen.",
             }),
+            headers={
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "URL": props.Translatable({"en": "URL", "nl": "URL"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+                "Ad": props.Translatable({"en": "Ad", "nl": "Advertentie"}),
+            },
             visualizations=[
                 {
                     "title": {
-                        "en": "Wordcloud of the words in your search history, large words mean they occur more frequently in your search history", 
-                        "nl": "Wordcloud of the words in the search histopry, large words mean they occur more frequently in your search history"
+                        "en": "Words in your search and watch history",
+                        "nl": "Woorden in je zoek- en kijkgeschiedenis",
                     },
                     "type": "wordcloud",
-                    "textColumn": "Zoekterm",
+                    "textColumn": "Title",
                     "tokenize": True,
                 }
             ]
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
-            id="youtube_abonnementen",
+            id="youtube_subscriptions",
             data_frame=subscriptions_to_df(zip, validation, errors),
             title=props.Translatable({
-                "nl": "Abonnementen",
-                "en": "Subscriptions"
+                "en": "Your subscriptions",
+                "nl": "Je abonnementen",
             }),
             description=props.Translatable({
-                "en": "List of YouTube channels you're subscribed to", 
-                "nl": "Lijst van YouTube-kanalen waarop je bent geabonneerd"
-            })
-        )
+                "en": "YouTube channels you are subscribed to.",
+                "nl": "YouTube-kanalen waarop je bent geabonneerd.",
+            }),
+            headers={
+                "Channel Id": props.Translatable({"en": "Channel Id", "nl": "Kanaal-id"}),
+                "Channel URL": props.Translatable({"en": "Channel URL", "nl": "Kanaal-URL"}),
+                "Channel Name": props.Translatable({"en": "Channel Name", "nl": "Kanaalnaam"}),
+            },
+        ),
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="youtube_comments",
+            data_frame=comments_to_df(zip, validation, errors),
+            title=props.Translatable({
+                "en": "Your comments",
+                "nl": "Je reacties",
+            }),
+            description=props.Translatable({
+                "en": "Comments you posted on YouTube videos and posts.",
+                "nl": "Reacties die je op YouTube-video's en -posts hebt geplaatst.",
+            }),
+            headers={
+                "Comment ID": props.Translatable({"en": "Comment ID", "nl": "Reactie-ID"}),
+                "Channel ID": props.Translatable({"en": "Channel ID", "nl": "Kanaal-ID"}),
+                "Timestamp": props.Translatable({"en": "Timestamp", "nl": "Datum en tijd"}),
+                "Price": props.Translatable({"en": "Price", "nl": "Prijs"}),
+                "Video ID": props.Translatable({"en": "Video ID", "nl": "Video-ID"}),
+                "Comment text": props.Translatable({"en": "Comment text", "nl": "Reactietekst"}),
+            },
+            visualizations=[
+                {
+                    "title": {
+                        "en": "Most common words in your comments",
+                        "nl": "Meest voorkomende woorden in je reacties",
+                    },
+                    "type": "wordcloud",
+                    "textColumn": "Comment text",
+                    "tokenize": True,
+                }
+            ],
+        ),
     ]
-    
+
     return ExtractionResult(
         tables=[table for table in tables if not table.data_frame.empty],
         errors=errors,
@@ -206,10 +299,10 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
 class YouTubeFlow(FlowBuilder):
     def __init__(self, session_id: str):
         super().__init__(session_id, "YouTube")
-        
+
     def validate_file(self, file):
         return validate.validate_zip(DDP_CATEGORIES, file)
-        
+
     def extract_data(self, file, validation):
         return extraction(file, validation)
 
