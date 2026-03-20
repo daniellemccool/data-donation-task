@@ -1,7 +1,10 @@
 """Tests for PII-safe logging boundary.
 
-Verifies that only port.bridge logs are forwarded via LogForwardingHandler,
-and that other port.* loggers stay local.
+Verifies that:
+- ExtractionResult dataclass works correctly
+- Content loggers are non-propagating (defense in depth)
+- Helper error counting works
+- emit_log produces CommandSystemLog commands
 """
 import sys
 import logging
@@ -12,8 +15,9 @@ sys.modules["js"] = MagicMock()
 
 import pytest
 from port.api.d3i_props import ExtractionResult, PropsUIPromptConsentFormTableViz
-from port.api.logging import LogForwardingHandler
+from port.api.commands import CommandSystemLog
 from port.api import props
+import port.helpers.port_helpers as ph
 import pandas as pd
 
 
@@ -43,53 +47,13 @@ class TestExtractionResult:
         assert not result.errors
 
 
-class TestLoggingBoundary:
-    """Verify that LogForwardingHandler only captures port.bridge logs."""
+class TestContentLoggerIsolation:
+    """Content loggers must not propagate even if parent handlers exist."""
 
-    @pytest.fixture(autouse=True)
-    def setup_bridge_logger(self):
-        """Set up port.bridge logger with handler, clean up after."""
-        self.queue = []
-        self.bridge_logger = logging.getLogger("port.bridge")
-        self.bridge_logger.propagate = False
-        self.handler = LogForwardingHandler(self.queue)
-        self.handler.setLevel(logging.INFO)
-        self.bridge_logger.addHandler(self.handler)
-        self.bridge_logger.setLevel(logging.DEBUG)
-        yield
-        self.bridge_logger.removeHandler(self.handler)
-        self.bridge_logger.propagate = True
-
-    def test_bridge_logger_forwards(self):
-        """Messages to port.bridge are forwarded."""
-        self.bridge_logger.info("test message")
-        assert len(self.queue) == 1
-        assert self.queue[0]["message"] == "test message"
-
-    def test_platform_logger_not_forwarded(self):
-        """Messages to port.platforms.facebook are NOT forwarded."""
-        fb_logger = logging.getLogger("port.platforms.facebook")
-        fb_logger.error("Exception caught: sensitive data")
-        assert len(self.queue) == 0
-
-    def test_helpers_logger_not_forwarded(self):
-        """Messages to port.helpers.uploads are NOT forwarded."""
-        uploads_logger = logging.getLogger("port.helpers.uploads")
-        uploads_logger.info("PayloadFile: wrote 64MB to /tmp/sensitive-name.zip")
-        assert len(self.queue) == 0
-
-    def test_extraction_helpers_not_forwarded(self):
-        """Messages to port.helpers.extraction_helpers are NOT forwarded."""
-        eh_logger = logging.getLogger("port.helpers.extraction_helpers")
-        eh_logger.error("File not found: contact_name.json")
-        assert len(self.queue) == 0
-
-    def test_bridge_propagate_false(self):
-        """port.bridge has propagate=False so parent handlers can't duplicate."""
-        assert self.bridge_logger.propagate is False
-
-    def test_content_logger_not_forwarded_even_with_parent_handler(self):
+    def test_content_logger_does_not_propagate(self):
         """Content logger stays silent even if a handler is on port."""
+        from port.api.logging import LogForwardingHandler
+
         port_logger = logging.getLogger("port")
         spy_queue = []
         spy_handler = LogForwardingHandler(spy_queue)
@@ -131,3 +95,20 @@ class TestHelperErrorCounting:
 
         result = extract_file_from_zip(str(zip_path), "nonexistent.json")
         assert result.getvalue() == b""
+
+
+class TestEmitLog:
+    """Verify emit_log produces CommandSystemLog via the generator protocol."""
+
+    def test_emit_log_yields_command_system_log(self):
+        gen = ph.emit_log("info", "test milestone")
+        cmd = next(gen)
+        assert isinstance(cmd, CommandSystemLog)
+        assert cmd.level == "info"
+        assert cmd.message == "test milestone"
+
+    def test_emit_log_completes_after_response(self):
+        gen = ph.emit_log("info", "test")
+        next(gen)  # get the command
+        with pytest.raises(StopIteration):
+            gen.send(None)  # send PayloadVoid equivalent

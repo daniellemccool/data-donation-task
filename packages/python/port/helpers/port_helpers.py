@@ -2,7 +2,7 @@ import logging
 
 import port.api.d3i_props as d3i_props
 import port.api.props as props
-from port.api.commands import CommandSystemDonate, CommandSystemExit, CommandUIRender
+from port.api.commands import CommandSystemDonate, CommandSystemExit, CommandSystemLog, CommandUIRender
 
 _logger = logging.getLogger(__name__)
 
@@ -168,6 +168,23 @@ def exit(code: int, info: str) -> CommandSystemExit:
         yield exit(0, "Success")
     """
     return CommandSystemExit(code, info)
+
+
+def emit_log(level: str, message: str):
+    """Yield a CommandSystemLog to the host via the command protocol.
+
+    Use via `yield from emit_log(...)` in generators (FlowBuilder, script.py).
+    The host receives the log immediately; the PayloadVoid response is discarded.
+
+    Messages sent through this function reach mono's /api/feldspar/log.
+    They MUST be PII-free — no file paths, exception text, or participant data.
+
+    Examples::
+
+        yield from emit_log("info", "[LinkedIn] Consent: accepted")
+        yield from emit_log("info", "Starting platform: Facebook")
+    """
+    _ = yield CommandSystemLog(level=level, message=message)
 
 
 def generate_radio_prompt(

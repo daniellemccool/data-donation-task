@@ -1,4 +1,8 @@
-"""Tests for FlowBuilder.start_flow() — all six flow paths."""
+"""Tests for FlowBuilder.start_flow() — all six flow paths.
+
+FlowBuilder now yields CommandSystemLog milestones between UI commands.
+Tests use consume_logs() to skip past log commands to the next UI/donate command.
+"""
 import json
 import sys
 from collections import Counter
@@ -9,7 +13,7 @@ sys.modules["js"] = MagicMock()
 import pytest
 from port.helpers.flow_builder import FlowBuilder
 from port.helpers.uploads import FileTooLargeError
-from port.api.commands import CommandUIRender, CommandSystemDonate
+from port.api.commands import CommandUIRender, CommandSystemDonate, CommandSystemLog
 from port.api.d3i_props import ExtractionResult
 import port.api.props as props
 import port.api.d3i_props as d3i_props
@@ -48,6 +52,22 @@ def make_payload(type_name, **attrs):
     return p
 
 
+def advance_past_logs(gen, response=None):
+    """Send response to generator, skip any CommandSystemLog commands, return next non-log command."""
+    cmd = gen.send(response)
+    while isinstance(cmd, CommandSystemLog):
+        cmd = gen.send(make_payload("PayloadVoid"))
+    return cmd
+
+
+def start_and_skip_logs(gen):
+    """Start generator and skip any initial log commands."""
+    cmd = next(gen)
+    while isinstance(cmd, CommandSystemLog):
+        cmd = gen.send(make_payload("PayloadVoid"))
+    return cmd
+
+
 class TestHappyPath:
     """User uploads valid file → extraction has data → consents → donates."""
 
@@ -58,26 +78,23 @@ class TestHappyPath:
         gen = flow.start_flow()
 
         # Step 1: file prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
         assert isinstance(cmd, CommandUIRender)
 
-        # Step 2: user uploads file (PayloadFile)
+        # Step 2: user uploads file → milestones → consent form
         file_payload = make_payload("PayloadFile", value=MagicMock())
-        cmd = gen.send(file_payload)
-        # Should be consent form
+        cmd = advance_past_logs(gen, file_payload)
         assert isinstance(cmd, CommandUIRender)
 
-        # Step 3: user consents (PayloadJSON)
+        # Step 3: user consents → milestones → donate command
         consent_payload = make_payload("PayloadJSON", value='{"data": "test"}')
-        cmd = gen.send(consent_payload)
-        # Should be donate command
+        cmd = advance_past_logs(gen, consent_payload)
         assert isinstance(cmd, CommandSystemDonate)
         assert cmd.key == "test-session-testplatform"
 
-        # Generator should continue (waiting for donate result)
-        # Send back PayloadVoid (fire-and-forget success)
+        # Donate result → final milestone → generator exhausts
         with pytest.raises(StopIteration):
-            gen.send(make_payload("PayloadVoid"))
+            advance_past_logs(gen, make_payload("PayloadVoid"))
 
 
 class TestRetryPath:
@@ -101,22 +118,19 @@ class TestRetryPath:
         gen = flow.start_flow()
 
         # File prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
         assert isinstance(cmd, CommandUIRender)
 
-        # Upload invalid file
-        cmd = gen.send(make_payload("PayloadString", value="/tmp/bad.zip"))
-        # Should be retry prompt
+        # Upload invalid file → milestones → retry prompt
+        cmd = advance_past_logs(gen, make_payload("PayloadString", value="/tmp/bad.zip"))
         assert isinstance(cmd, CommandUIRender)
 
-        # User clicks "Try again" (PayloadTrue)
-        cmd = gen.send(make_payload("PayloadTrue"))
-        # Should loop back to file prompt
+        # User clicks "Try again" → loops back → file prompt
+        cmd = advance_past_logs(gen, make_payload("PayloadTrue"))
         assert isinstance(cmd, CommandUIRender)
 
-        # Upload valid file
-        cmd = gen.send(make_payload("PayloadString", value="/tmp/good.zip"))
-        # Should be consent form
+        # Upload valid file → milestones → consent form
+        cmd = advance_past_logs(gen, make_payload("PayloadString", value="/tmp/good.zip"))
         assert isinstance(cmd, CommandUIRender)
 
 
@@ -128,10 +142,10 @@ class TestSkipPath:
         gen = flow.start_flow()
 
         # File prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
         assert isinstance(cmd, CommandUIRender)
 
-        # User skips (PayloadFalse or similar)
+        # User skips
         with pytest.raises(StopIteration):
             gen.send(make_payload("PayloadFalse"))
 
@@ -146,15 +160,14 @@ class TestNoDataPath:
         gen = flow.start_flow()
 
         # File prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
         assert isinstance(cmd, CommandUIRender)
 
-        # Upload valid file
-        cmd = gen.send(make_payload("PayloadString", value="/tmp/empty.zip"))
-        # Should be no-data page
+        # Upload valid file → milestones → no-data page
+        cmd = advance_past_logs(gen, make_payload("PayloadString", value="/tmp/empty.zip"))
         assert isinstance(cmd, CommandUIRender)
 
-        # User acknowledges no-data page
+        # User acknowledges
         with pytest.raises(StopIteration):
             gen.send(make_payload("PayloadTrue"))
 
@@ -169,12 +182,11 @@ class TestSafetyErrorPath:
         gen = flow.start_flow()
 
         # File prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
         assert isinstance(cmd, CommandUIRender)
 
-        # Upload file that fails safety
-        cmd = gen.send(make_payload("PayloadFile", value=MagicMock()))
-        # Should be safety error page
+        # Upload file that fails safety → milestones → safety error page
+        cmd = advance_past_logs(gen, make_payload("PayloadFile", value=MagicMock()))
         assert isinstance(cmd, CommandUIRender)
 
         # User acknowledges
@@ -193,21 +205,18 @@ class TestDonateFailurePath:
         gen = flow.start_flow()
 
         # File prompt
-        cmd = next(gen)
+        cmd = start_and_skip_logs(gen)
 
-        # Upload valid file
-        cmd = gen.send(make_payload("PayloadString", value="/tmp/test.zip"))
-        # Consent form
+        # Upload valid file → milestones → consent form
+        cmd = advance_past_logs(gen, make_payload("PayloadString", value="/tmp/test.zip"))
         assert isinstance(cmd, CommandUIRender)
 
-        # User consents
-        cmd = gen.send(make_payload("PayloadJSON", value='{"data": "test"}'))
-        # Donate command
+        # User consents → milestones → donate command
+        cmd = advance_past_logs(gen, make_payload("PayloadJSON", value='{"data": "test"}'))
         assert isinstance(cmd, CommandSystemDonate)
 
-        # Donate result comes back — send it to gen
-        cmd = gen.send(make_payload("PayloadResponse", success=False))
-        # Should be donate failure page
+        # Donate result → milestones → donate failure page
+        cmd = advance_past_logs(gen, make_payload("PayloadResponse", success=False))
         assert isinstance(cmd, CommandUIRender)
 
         # User acknowledges
@@ -217,7 +226,6 @@ class TestDonateFailurePath:
 
 class TestSessionIdType:
     def test_session_id_accepts_string(self):
-        """FlowBuilder.__init__ should accept str for session_id."""
         flow = StubFlow(session_id="abc-123")
         assert flow.session_id == "abc-123"
 
@@ -229,7 +237,7 @@ class TestDonateKeyFormat:
         """Donate key should be '{session_id}-{platform_name.lower()}'."""
         flow = StubFlow(session_id="sess-42")
         gen = flow.start_flow()
-        next(gen)  # file prompt
-        gen.send(make_payload("PayloadString", value="/tmp/test.zip"))  # consent form
-        cmd = gen.send(make_payload("PayloadJSON", value="{}"))  # donate
+        start_and_skip_logs(gen)  # file prompt
+        advance_past_logs(gen, make_payload("PayloadString", value="/tmp/test.zip"))  # consent form
+        cmd = advance_past_logs(gen, make_payload("PayloadJSON", value="{}"))  # donate
         assert cmd.key == "sess-42-testplatform"

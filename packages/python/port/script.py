@@ -3,11 +3,8 @@
 This module defines which platforms are included in the study and
 delegates per-platform flows to FlowBuilder subclasses via `yield from`.
 """
-import logging
-
 import port.helpers.port_helpers as ph
 
-bridge_logger = logging.getLogger("port.bridge")
 import port.platforms.linkedin as linkedin
 import port.platforms.instagram as instagram
 import port.platforms.facebook as facebook
@@ -17,8 +14,6 @@ import port.platforms.netflix as netflix
 import port.platforms.chatgpt as chatgpt
 import port.platforms.whatsapp as whatsapp
 import port.platforms.x as x
-
-logger = logging.getLogger(__name__)
 
 
 def process(session_id: str, platform: str | None = None):
@@ -43,10 +38,10 @@ def process(session_id: str, platform: str | None = None):
     platforms = filter_platforms(all_platforms, platform)
 
     for platform_name, flow in platforms:
-        bridge_logger.info("Starting platform: %s", platform_name)
+        yield from ph.emit_log("info", f"Starting platform: {platform_name}")
         yield from flow.start_flow()
 
-    bridge_logger.info("Study complete")
+    yield from ph.emit_log("info", "Study complete")
     yield ph.render_end_page()
 
 

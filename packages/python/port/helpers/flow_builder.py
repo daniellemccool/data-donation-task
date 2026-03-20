@@ -16,7 +16,6 @@ import port.helpers.validate as validate
 import port.helpers.uploads as uploads
 
 logger = logging.getLogger(__name__)
-bridge_logger = logging.getLogger("port.bridge")
 
 
 class FlowBuilder:
@@ -55,8 +54,9 @@ class FlowBuilder:
         - break: successful extraction, proceed to consent
         - return: every terminal path
 
-        Bridge logger milestones are PII-free status messages forwarded to mono.
-        Local logger keeps full diagnostic detail in browser console only.
+        Flow milestones are sent to the host via explicit CommandSystemLog yields
+        (through emit_log). These must be PII-free. Local logger keeps full
+        diagnostic detail in browser console only.
         """
         while True:
             # 1. Render file prompt → receive payload
@@ -72,15 +72,14 @@ class FlowBuilder:
             # 2. Materialize upload to path
             path = uploads.materialize_file(file_result)
             file_size = getattr(file_result.value, "size", None) if file_result.__type__ == "PayloadFile" else None
-            bridge_logger.info("[%s] File received: %s bytes, %s",
-                               self.platform_name, file_size or "unknown", file_result.__type__)
+            yield from ph.emit_log("info", f"[{self.platform_name}] File received: {file_size or 'unknown'} bytes, {file_result.__type__}")
 
             # 3. Safety check
             try:
                 uploads.check_file_safety(path)
             except (uploads.FileTooLargeError, uploads.ChunkedExportError) as e:
                 logger.error("Safety check failed for %s: %s", self.platform_name, e)
-                bridge_logger.info("[%s] Safety check failed: %s", self.platform_name, type(e).__name__)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Safety check failed: {type(e).__name__}")
                 _ = yield ph.render_safety_error_page(self.platform_name, e)
                 return
 
@@ -91,9 +90,9 @@ class FlowBuilder:
             category_id = getattr(category, "id", "unknown") if category else "unknown"
 
             if status == 0:
-                bridge_logger.info("[%s] Validation: valid (%s)", self.platform_name, category_id)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Validation: valid ({category_id})")
             else:
-                bridge_logger.info("[%s] Validation: invalid", self.platform_name)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Validation: invalid")
 
             # 5. If invalid → retry prompt
             if status != 0:
@@ -112,15 +111,13 @@ class FlowBuilder:
             else:
                 result = raw_result
 
-            # 7. Log extraction summary via bridge (PII-free: counts only)
+            # 7. Log extraction summary (PII-free: counts only)
             total_rows = sum(len(t.data_frame) for t in result.tables)
             if result.errors:
                 error_summary = ", ".join(f"{k}×{v}" for k, v in result.errors.items())
-                bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: %s",
-                                   self.platform_name, len(result.tables), total_rows, error_summary)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Extraction complete: {len(result.tables)} tables, {total_rows} rows; errors: {error_summary}")
             else:
-                bridge_logger.info("[%s] Extraction complete: %d tables, %d rows; errors: none",
-                                   self.platform_name, len(result.tables), total_rows)
+                yield from ph.emit_log("info", f"[{self.platform_name}] Extraction complete: {len(result.tables)} tables, {total_rows} rows; errors: none")
 
             # 8. If no tables → no-data page
             if not result.tables:
@@ -131,33 +128,32 @@ class FlowBuilder:
             break  # proceed to consent
 
         # 9. Render consent form
-        bridge_logger.info("[%s] Consent form shown", self.platform_name)
+        yield from ph.emit_log("info", f"[{self.platform_name}] Consent form shown")
         review_data_prompt = self.generate_review_data_prompt(result.tables)
         consent_result = yield ph.render_page(self.UI_TEXT["review_data_header"], review_data_prompt)
 
         # 10. Donate with per-platform key
         if consent_result.__type__ == "PayloadJSON":
             reviewed_data = consent_result.value
-            bridge_logger.info("[%s] Consent: accepted", self.platform_name)
+            yield from ph.emit_log("info", f"[{self.platform_name}] Consent: accepted")
         elif consent_result.__type__ == "PayloadFalse":
             reviewed_data = json.dumps({"status": "data_submission declined"})
-            bridge_logger.info("[%s] Consent: declined", self.platform_name)
+            yield from ph.emit_log("info", f"[{self.platform_name}] Consent: declined")
         else:
             return
 
         donate_key = f"{self.session_id}-{self.platform_name.lower()}"
-        bridge_logger.info("[%s] Donation started: payload size=%d bytes",
-                           self.platform_name, len(reviewed_data))
+        yield from ph.emit_log("info", f"[{self.platform_name}] Donation started: payload size={len(reviewed_data)} bytes")
         donate_result = yield ph.donate(donate_key, reviewed_data)
 
         # 11. Inspect donate result
         if not ph.handle_donate_result(donate_result):
             logger.error("Donation failed for %s", self.platform_name)
-            bridge_logger.info("[%s] Donation result: failed", self.platform_name)
+            yield from ph.emit_log("info", f"[{self.platform_name}] Donation result: failed")
             _ = yield ph.render_donate_failure_page(self.platform_name)
             return
 
-        bridge_logger.info("[%s] Donation result: success", self.platform_name)
+        yield from ph.emit_log("info", f"[{self.platform_name}] Donation result: success")
 
     # Methods to be overridden by platform-specific implementations
     def generate_file_prompt(self):
