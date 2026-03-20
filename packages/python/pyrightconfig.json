@@ -1,0 +1,8 @@
+{
+  "include": ["port", "tests"],
+  "extraPaths": ["."],
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "basic",
+  "venvPath": "/home/dmm/.cache/pypoetry/virtualenvs",
+  "venv": "port-Fx1ilG8u-py3.14"
+}
