@@ -7,15 +7,17 @@ Assumptions:
 It handles DDPs in the english language with filetype CSV.
 """
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 import port.helpers.port_helpers as ph
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
     DDPCategory,
@@ -34,13 +36,13 @@ DDP_CATEGORIES = [
     )
 ]
 
-def extract_users(netflix_zip) -> list[str]:
+def extract_users(netflix_zip, errors: Counter | None = None) -> list[str]:
     """
-    Extracts all users from a netflix csv file 
+    Extracts all users from a netflix csv file
     This function expects all users to be present in the first column of a pd.DataFrame
     """
 
-    b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv")
+    b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv", errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
     out = []
     try:
@@ -48,6 +50,8 @@ def extract_users(netflix_zip) -> list[str]:
         out.sort()
     except Exception as e:
         logger.error("Cannot extract users: %s", e)
+        if errors is not None:
+            errors[type(e).__name__] += 1
 
     return out
     
@@ -65,19 +69,19 @@ def keep_user(df: pd.DataFrame, selected_user: str) -> pd.DataFrame:
     return df
 
     
-def netflix_to_df(netflix_zip: str, file_name: str, selected_user: str) -> pd.DataFrame:
+def netflix_to_df(netflix_zip: str, file_name: str, selected_user: str, errors: Counter) -> pd.DataFrame:
     """
     netflix csv to df
     returns empty df in case of error
     """
-    ratings_bytes = eh.extract_file_from_zip(netflix_zip, file_name)
+    ratings_bytes = eh.extract_file_from_zip(netflix_zip, file_name, errors=errors)
     df = eh.read_csv_from_bytes_to_df(ratings_bytes)
     df = keep_user(df, selected_user)
 
     return df
 
 
-def ratings_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
+def ratings_to_df(netflix_zip: str, selected_user: str, errors: Counter)  -> pd.DataFrame:
     """
     Extract ratings from netflix zip to df
     Only keep the selected user
@@ -90,7 +94,7 @@ def ratings_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
         "Thumbs Value": "Aantal duimpjes omhoog"
     }
 
-    df = netflix_to_df(netflix_zip, "Ratings.csv", selected_user)
+    df = netflix_to_df(netflix_zip, "Ratings.csv", selected_user, errors)
 
     # Extraction logic here
     try:
@@ -99,7 +103,8 @@ def ratings_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
             df = df.rename(columns=columns_to_rename) #pyright: ignore
     except Exception as e:
         logger.error("Data extraction error: %s", e)
-        
+        errors[type(e).__name__] += 1
+
     return df
 
 
@@ -121,7 +126,7 @@ def time_string_to_hours(time_str):
     return round(total_hours, 3)
 
 
-def viewing_activity_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
+def viewing_activity_to_df(netflix_zip: str, selected_user: str, errors: Counter)  -> pd.DataFrame:
     """
     Extract ViewingActivity from netflix zip to df
     Only keep the selected user
@@ -135,7 +140,7 @@ def viewing_activity_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFram
         "Duration": "Aantal uur gekeken"
     }
 
-    df = netflix_to_df(netflix_zip, "ViewingActivity.csv", selected_user)
+    df = netflix_to_df(netflix_zip, "ViewingActivity.csv", selected_user, errors)
     remove_values = ["TEASER_TRAILER", "HOOK", "TRAILER", "CINEMAGRAPH"]
 
     try:
@@ -148,16 +153,18 @@ def viewing_activity_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFram
         df = df.sort_values(by='Start tijd', ascending=True).reset_index(drop=True)
     except Exception as e:
         logger.error("Data extraction error: %s", e)
-        
+        errors[type(e).__name__] += 1
+
     return df
 
 
 
-def extraction(netflix_zip: str, selected_user: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(netflix_zip: str, selected_user: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_ratings",
-            data_frame=ratings_to_df(netflix_zip, selected_user),
+            data_frame=ratings_to_df(netflix_zip, selected_user, errors),
             title=props.Translatable({
                 "en": "Your ratings on Netflix",
                 "nl": "Uw beoordelingen op Netflix"
@@ -180,7 +187,7 @@ def extraction(netflix_zip: str, selected_user: str) -> list[d3i_props.PropsUIPr
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_viewing_activity",
-            data_frame=viewing_activity_to_df(netflix_zip, selected_user),
+            data_frame=viewing_activity_to_df(netflix_zip, selected_user, errors),
             title= props.Translatable({
                 "en": "What you watched",
                 "nl": "Wanneer kijkt u Netflix"
@@ -225,11 +232,14 @@ def extraction(netflix_zip: str, selected_user: str) -> list[d3i_props.PropsUIPr
         ),
     ]
 
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class NetflixFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "Netflix")
         
     def validate_file(self, file):

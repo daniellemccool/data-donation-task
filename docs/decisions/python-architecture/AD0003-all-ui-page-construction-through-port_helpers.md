@@ -7,6 +7,9 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-17 13:20:45"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-17 15:03:22"
 date: 2026-03-13T00:00:00Z
 links:
     precedes: []
@@ -57,4 +60,4 @@ The `feat/facebook-ddp-error-handling` branch's `donation_failed_flow()` constru
 See [extraction/AD0001](../extraction/AD0001-flowbuilder-template-for-per-platform-extraction-flows.md) — FlowBuilder lives in helpers/ and uses port_helpers for page construction.
 
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-17 13:20:45) Danielle McCool: Known violation (2026-03-17): main.py error_flow() (lines 26-41) constructs raw PropsUI objects directly. This is deferred — it will be fixed when the error donation system is properly redesigned. The extraction consolidation design (AD0006) enforces AD0003 for script.py and FlowBuilder but explicitly leaves main.py as an out-of-scope violation.
+<a name="comment-3"></a>3. (2026-03-17 15:03:22) Danielle McCool: Follow-up option: FlowBuilder.start_flow() uses json.dumps() inline to construct the decline status payload. This could be extracted to a port_helpers function (e.g. ph.donate_declined(key)) to keep FlowBuilder purely about flow orchestration. Not an AD0003 violation (data format, not UI construction) but would improve separation of concerns.

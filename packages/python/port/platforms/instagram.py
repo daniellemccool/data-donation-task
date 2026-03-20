@@ -7,14 +7,16 @@ Assumptions:
 It handles DDPs in the english language with filetype JSON.
 """
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
     DDPCategory,
@@ -68,10 +70,10 @@ DDP_CATEGORIES = [
 
 
 
-def accounts_not_interested_in_to_df(instagram_zip: str) -> pd.DataFrame:
+def accounts_not_interested_in_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "accounts_you're_not_interested_in.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "accounts_you're_not_interested_in.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -88,21 +90,22 @@ def accounts_not_interested_in_to_df(instagram_zip: str) -> pd.DataFrame:
 
             datapoints.append((
                 account_name,
-                eh.epoch_to_iso(timestamp)
+                eh.epoch_to_iso(timestamp, errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Account name", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def ads_viewed_to_df(instagram_zip: str) -> pd.DataFrame:
+def ads_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "ads_viewed.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "ads_viewed.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -119,21 +122,22 @@ def ads_viewed_to_df(instagram_zip: str) -> pd.DataFrame:
 
             datapoints.append((
                 account_name,
-                eh.epoch_to_iso(timestamp)
+                eh.epoch_to_iso(timestamp, errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Author of ad", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def posts_viewed_to_df(instagram_zip: str) -> pd.DataFrame:
+def posts_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "posts_viewed.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "posts_viewed.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -150,22 +154,23 @@ def posts_viewed_to_df(instagram_zip: str) -> pd.DataFrame:
 
             datapoints.append((
                 account_name,
-                eh.epoch_to_iso(timestamp)
+                eh.epoch_to_iso(timestamp, errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Author", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def posts_not_interested_in_to_df(instagram_zip: str) -> pd.DataFrame:
+def posts_not_interested_in_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "posts_you're_not_interested_in.json")
-    data = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "posts_you're_not_interested_in.json", errors=errors)
+    data = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -177,22 +182,23 @@ def posts_not_interested_in_to_df(instagram_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(d, "value")),
                 eh.find_item(d, "href"),
-                eh.epoch_to_iso(eh.find_item(d, "timestamp"))
+                eh.epoch_to_iso(eh.find_item(d, "timestamp"), errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Post", "Link", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def videos_watched_to_df(instagram_zip: str) -> pd.DataFrame:
+def videos_watched_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "videos_watched.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "videos_watched.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -209,18 +215,19 @@ def videos_watched_to_df(instagram_zip: str) -> pd.DataFrame:
 
             datapoints.append((
                 account_name,
-                eh.epoch_to_iso(timestamp)
+                eh.epoch_to_iso(timestamp, errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Author", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def post_comments_to_df(instagram_zip: str) -> pd.DataFrame:
+def post_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     """
     You can have 1 to n files of post_comments_<x>.json
     """
@@ -230,8 +237,8 @@ def post_comments_to_df(instagram_zip: str) -> pd.DataFrame:
     i = 1
 
     while True:
-        b = eh.extract_file_from_zip(instagram_zip, f"post_comments_{i}.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(instagram_zip, f"post_comments_{i}.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
         if not d:
             break
@@ -249,12 +256,13 @@ def post_comments_to_df(instagram_zip: str) -> pd.DataFrame:
                 datapoints.append((
                     media_owner,
                     eh.fix_latin1_string(comment),
-                    eh.epoch_to_iso(timestamp)
+                    eh.epoch_to_iso(timestamp, errors=errors)
                 ))
             i += 1
 
         except Exception as e:
             logger.error("Exception caught: %s", e)
+            errors[type(e).__name__] += 1
             return pd.DataFrame()
 
     out = pd.DataFrame(datapoints, columns=["Media Owner", "Comment", "Date"]) # pyright: ignore
@@ -263,10 +271,10 @@ def post_comments_to_df(instagram_zip: str) -> pd.DataFrame:
 
 
 
-def following_to_df(instagram_zip: str) -> pd.DataFrame:
+def following_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "following.json")
-    data = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "following.json", errors=errors)
+    data = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -278,22 +286,23 @@ def following_to_df(instagram_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(d, "value")),
                 eh.find_item(d, "href"),
-                eh.epoch_to_iso(eh.find_item(d, "timestamp"))
+                eh.epoch_to_iso(eh.find_item(d, "timestamp"), errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Account", "Link", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def liked_comments_to_df(instagram_zip: str) -> pd.DataFrame:
+def liked_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "liked_comments.json")
-    data = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "liked_comments.json", errors=errors)
+    data = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -306,21 +315,22 @@ def liked_comments_to_df(instagram_zip: str) -> pd.DataFrame:
                 eh.fix_latin1_string(eh.find_item(d, "title")),
                 eh.fix_latin1_string(eh.find_item(d, "value")),
                 eh.find_items(d, "href"),
-                eh.epoch_to_iso(eh.find_item(d, "timestamp"))
+                eh.epoch_to_iso(eh.find_item(d, "timestamp"), errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Account name", "Value", "Link", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def liked_posts_to_df(instagram_zip: str) -> pd.DataFrame:
+def liked_posts_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "liked_posts.json")
-    data = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(instagram_zip, "liked_posts.json", errors=errors)
+    data = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -333,22 +343,24 @@ def liked_posts_to_df(instagram_zip: str) -> pd.DataFrame:
                 eh.fix_latin1_string(eh.find_item(d, "title")),
                 eh.fix_latin1_string(eh.find_item(d, "value")),
                 eh.find_items(d, "href"),
-                eh.epoch_to_iso(eh.find_item(d, "timestamp"))
+                eh.epoch_to_iso(eh.find_item(d, "timestamp"), errors=errors)
             ))
         out = pd.DataFrame(datapoints, columns=["Account name", "Value", "Link", "Date"]) # pyright: ignore
         out = out.sort_values(by="Date", key=eh.sort_isotimestamp_empty_timestamp_last)
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(instagram_zip: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_posts_viewed",
-            data_frame=posts_viewed_to_df(instagram_zip),
+            data_frame=posts_viewed_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Posts viewed on Instagram",
                 "nl": "Berichten bekeken op Instagram"
@@ -392,7 +404,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_videos_watched",
-            data_frame=videos_watched_to_df(instagram_zip),
+            data_frame=videos_watched_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Videos watched on Instagram",
                 "nl": "Video's bekeken op Instagram"
@@ -421,7 +433,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_post_comments",
-            data_frame=post_comments_to_df(instagram_zip),
+            data_frame=post_comments_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Comments on Instagram posts",
                 "nl": "Reacties op Instagram-berichten",
@@ -444,7 +456,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_accounts_not_interested_in",
-            data_frame=accounts_not_interested_in_to_df(instagram_zip),
+            data_frame=accounts_not_interested_in_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Instagram accounts not interested in",
                 "nl": "Instagram-accounts waarin je geen interesse hebt"
@@ -456,7 +468,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_ads_viewed",
-            data_frame=ads_viewed_to_df(instagram_zip),
+            data_frame=ads_viewed_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Ads you viewed on Instagram",
                 "nl": "Advertenties die je op Instagram hebt bekeken"
@@ -468,7 +480,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_posts_not_interested_in",
-            data_frame=posts_not_interested_in_to_df(instagram_zip),
+            data_frame=posts_not_interested_in_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Instagram posts not interested in",
                 "nl": "Instagram-berichten waarin je geen interesse hebt"
@@ -480,7 +492,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_following",
-            data_frame=following_to_df(instagram_zip),
+            data_frame=following_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Accounts that you follow on Instagram",
                 "nl": "Accounts die je volgt op Instagram"
@@ -492,7 +504,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_liked_comments",
-            data_frame=liked_comments_to_df(instagram_zip),
+            data_frame=liked_comments_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Instagram liked comments",
                 "nl": "Instagram-reacties die je leuk vond"
@@ -515,7 +527,7 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_liked_posts",
-            data_frame=liked_posts_to_df(instagram_zip),
+            data_frame=liked_posts_to_df(instagram_zip, errors),
             title=props.Translatable({
                 "en": "Instagram liked posts",
                 "nl": "Instagram-berichten die je leuk vond"
@@ -538,11 +550,14 @@ def extraction(instagram_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTab
         )
     ]
 
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class InstagramFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "Instagram")
         
     def validate_file(self, file):

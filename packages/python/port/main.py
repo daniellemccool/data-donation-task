@@ -1,13 +1,10 @@
-import logging
 import traceback
 import json
 import datetime
-from collections import deque
 from collections.abc import Generator
 
 from port.api.commands import CommandSystemExit, CommandUIRender, CommandSystemDonate
 from port.api.file_utils import AsyncFileAdapter
-from port.api.logging import LogForwardingHandler
 from port.script import process
 import port.api.props as props
 
@@ -18,6 +15,11 @@ def error_flow(platform: str | None, tb: str):
 
     Yields an error consent page, then optionally donates the error log
     if the participant consents.
+
+    This is a PII safety boundary (AD0009): uncaught exceptions are caught
+    here in Python and routed through consent-gated UI, preventing them
+    from reaching the JS-side LogForwarder which would forward unsanitized
+    to mono.
 
     Args:
         platform: Name of the active platform when the error occurred.
@@ -54,20 +56,8 @@ class ScriptWrapper(Generator):
         self.script = script
         self.platform = platform or "unknown"
         self._error_handler = None
-        self.queue: deque = deque()
-
-    def add_log_handler(self, logger_name: str = "port.script") -> None:
-        """Attach a handler to the named logger that forwards log records as CommandSystemLog commands."""
-        logger = logging.getLogger(logger_name)
-        logger.setLevel(logging.DEBUG)
-        logger.addHandler(LogForwardingHandler(self.queue))
 
     def send(self, data):
-        # If log commands are queued, discard incoming response
-        # because it is the PayloadVoid response to a previous log.
-        if self.queue:
-            return self.queue.popleft()
-
         if self._error_handler is not None:
             try:
                 command = self._error_handler.send(data)
@@ -93,10 +83,7 @@ class ScriptWrapper(Generator):
             command = next(self._error_handler)
             return command.toDict()
 
-        # Append the script command AFTER any log commands already in the queue.
-        # This preserves log-before-command ordering.
-        self.queue.append(command.toDict())
-        return self.queue.popleft()
+        return command.toDict()
 
     def throw(self, _type=None, _value=None, _traceback=None):
         raise StopIteration
@@ -104,6 +91,4 @@ class ScriptWrapper(Generator):
 
 def start(sessionId, platform=None):
     script = process(sessionId, platform)
-    wrapper = ScriptWrapper(script, platform=platform)
-    wrapper.add_log_handler()
-    return wrapper
+    return ScriptWrapper(script, platform=platform)

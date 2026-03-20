@@ -1,6 +1,10 @@
+import logging
+
 import port.api.d3i_props as d3i_props
 import port.api.props as props
-from port.api.commands import CommandSystemDonate, CommandSystemExit, CommandUIRender
+from port.api.commands import CommandSystemDonate, CommandSystemExit, CommandSystemLog, CommandUIRender
+
+_logger = logging.getLogger(__name__)
 
 
 def render_page(
@@ -40,22 +44,18 @@ def render_page(
     return CommandUIRender(page)
 
 
-def generate_retry_prompt(platform_name: str) -> d3i_props.PropsUIPromptRetry:
+def generate_retry_prompt(platform_name: str) -> props.PropsUIPromptConfirm:
     """
     Generate a bilingual retry prompt for file processing errors.
 
-    This function returns a bilingual (English and Dutch) retry prompt
-    when a file from a specific platform cannot be processed. It informs
-    the user that the file could not be processed and provides the option
-    to try again with a different file.
+    Returns a PropsUIPromptConfirm with "Try again" (ok → PayloadTrue) and
+    "Continue" (cancel → PayloadFalse) buttons. Using standard feldspar
+    PropsUIPromptConfirm instead of d3i PropsUIPromptRetry which only
+    renders a single button. See data-collector/AD0002 for the broader
+    decision on custom vs standard prompt components.
 
     Args:
-        platform_name (str): The name of the platform associated with the file
-            that could not be processed. This name is inserted into the prompt text.
-
-    Returns:
-        d3i_props.PropsUIPromptRetry: A retry prompt object containing
-        the message text and the label for the "Try again" button.
+        platform_name: The name of the platform whose file could not be processed.
     """
 
     text = props.Translatable(
@@ -66,7 +66,8 @@ def generate_retry_prompt(platform_name: str) -> d3i_props.PropsUIPromptRetry:
         }
     )
     ok = props.Translatable({"en": "Try again", "nl": "Probeer opnieuw", "es": "Intentar de nuevo"})
-    return d3i_props.PropsUIPromptRetry(text, ok)
+    cancel = props.Translatable({"en": "Continue", "nl": "Doorgaan", "es": "Continuar"})
+    return props.PropsUIPromptConfirm(text, ok, cancel)
 
 
 def generate_file_prompt(
@@ -169,6 +170,23 @@ def exit(code: int, info: str) -> CommandSystemExit:
     return CommandSystemExit(code, info)
 
 
+def emit_log(level: str, message: str):
+    """Yield a CommandSystemLog to the host via the command protocol.
+
+    Use via `yield from emit_log(...)` in generators (FlowBuilder, script.py).
+    The host receives the log immediately; the PayloadVoid response is discarded.
+
+    Messages sent through this function reach mono's /api/feldspar/log.
+    They MUST be PII-free — no file paths, exception text, or participant data.
+
+    Examples::
+
+        yield from emit_log("info", "[LinkedIn] Consent: accepted")
+        yield from emit_log("info", "Starting platform: Facebook")
+    """
+    _ = yield CommandSystemLog(level=level, message=message)
+
+
 def generate_radio_prompt(
     title: props.Translatable, description: props.Translatable, items: list[str]
 ) -> props.PropsUIPromptRadioInput:
@@ -248,3 +266,104 @@ def generate_questionnaire() -> d3i_props.PropsUIPromptQuestionnaire:
     return d3i_props.PropsUIPromptQuestionnaire(
         description=questionnaire_description, questions=[multiple_choice_question, checkbox_question_obj, open_ended_question]
     )
+
+
+def render_end_page() -> CommandUIRender:
+    """Render study completion page."""
+    return CommandUIRender(props.PropsUIPageEnd())
+
+
+def render_no_data_page(platform_name: str) -> CommandUIRender:
+    """Render 'no relevant data found' with acknowledge button.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": f"No data found",
+            "nl": f"Geen gegevens gevonden",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Unfortunately, no relevant data was found in your {platform_name} file.",
+            "nl": f"Helaas zijn er geen relevante gegevens gevonden in uw {platform_name} bestand.",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def render_safety_error_page(platform_name: str, error: Exception) -> CommandUIRender:
+    """Render file safety error page.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": "File cannot be processed",
+            "nl": "Bestand kan niet worden verwerkt",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Your {platform_name} file could not be processed: {error}",
+            "nl": f"Uw {platform_name} bestand kon niet worden verwerkt: {error}",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def render_donate_failure_page(platform_name: str) -> CommandUIRender:
+    """Render donation failure page.
+
+    Caller should yield and await response before returning.
+    """
+    header = props.PropsUIHeader(
+        props.Translatable({
+            "en": "Data submission failed",
+            "nl": "Gegevensinzending mislukt",
+        })
+    )
+    body = props.PropsUIPromptConfirm(
+        text=props.Translatable({
+            "en": f"Unfortunately, your {platform_name} data could not be submitted. Please try again later.",
+            "nl": f"Helaas konden uw {platform_name} gegevens niet worden ingediend. Probeer het later opnieuw.",
+        }),
+        ok=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+        cancel=props.Translatable({"en": "Continue", "nl": "Doorgaan"}),
+    )
+    page = props.PropsUIPageDataSubmission(platform_name, header, body)
+    return CommandUIRender(page)
+
+
+def handle_donate_result(result) -> bool:
+    """Inspect donate result. Returns True on success, False on failure.
+
+    eyra/feldspar develop (Feb 2026+) returns PayloadResponse for
+    CommandSystemDonate with value.success indicating outcome. Older
+    feldspar and FakeBridge (dev mode) return PayloadVoid (fire-and-forget).
+
+    PayloadResponse → check value.success (production path, checked first)
+    PayloadVoid / None → True (dev mode / backward-compat)
+    Anything else → log warning, return False
+    """
+    if result is None:
+        return True
+
+    result_type = getattr(result, "__type__", None)
+
+    if result_type == "PayloadResponse":
+        # value is { success: bool, key: str, status: int, error?: str }
+        return bool(result.value.success)
+
+    if result_type == "PayloadVoid":
+        return True
+
+    _logger.warning("Unexpected donate result type: %s", result_type)
+    return False

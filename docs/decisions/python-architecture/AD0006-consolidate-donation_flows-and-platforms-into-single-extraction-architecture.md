@@ -7,10 +7,13 @@ comments:
     - author: Danielle McCool
       comment: "2"
       date: "2026-03-17 13:18:38"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-17 14:34:04"
 links:
     precedes: []
     succeeds: []
-status: accepted
+status: decided
 tags:
     - extraction
     - flowbuilder
@@ -79,7 +82,7 @@ Ecosystem adoption: FlowBuilder is used in d3i-infra (9 platforms) and dd-vu-202
 * Bad, because platforms/ code is more verbose (1000+ LOC per platform vs 59)
 
 ## <a name="outcome"></a> Decision Outcome
-We decided for [Option 4](#option-4) because: FlowBuilder realizes Niek's (trbKnl) original goal of standardizing data donation flows. Hand-written extraction functions align with data minimization: researchers select specific tables, not auto-extract everything. donation_flows/ (what-if origin) is removed as a parallel architecture. FlowBuilder moves to helpers/flow_builder.py (per AD0001), owns the per-platform flow (file→validate→retry→extract→consent→donate), and script.py delegates via yield from. The entries pattern could become an optional plug-in but is not the standard. See docs/superpowers/specs/2026-03-17-extraction-consolidation-design.md for the full design.
+We decided for [Option 4](#option-4) because: FlowBuilder is the standard per the extraction consolidation design spec. donation_flows/ has been removed. All 9 platforms use FlowBuilder subclasses with hand-written extraction functions and DDP_CATEGORIES validation.
 
 ## <a name="comments"></a> Comments
-<a name="comment-2"></a>2. (2026-03-17 13:18:38) Danielle McCool: marked decision as decided
+<a name="comment-3"></a>3. (2026-03-17 14:34:04) Danielle McCool: marked decision as decided

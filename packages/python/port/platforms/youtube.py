@@ -7,14 +7,16 @@ Assumptions:
 It handles DDPs in the dutch and english language with filetype JSON.
 """
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
     DDPCategory,
@@ -49,15 +51,15 @@ DDP_CATEGORIES = [
 ]
 
 
-def watch_history_to_df(zip: str, validation) -> pd.DataFrame:
-    
+def watch_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
+
     if validation.current_ddp_category.language == Language.NL:
-        b = eh.extract_file_from_zip(zip, "kijkgeschiedenis.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(zip, "kijkgeschiedenis.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
     elif validation.current_ddp_category.language == Language.EN:
-        b = eh.extract_file_from_zip(zip, "watch-history.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(zip, "watch-history.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
     else:
         d = {}
@@ -77,19 +79,20 @@ def watch_history_to_df(zip: str, validation) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def search_history_to_df(zip: str, validation) -> pd.DataFrame:
-    
+def search_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
+
     if validation.current_ddp_category.language == Language.NL:
-        b = eh.extract_file_from_zip(zip, "zoekgeschiedenis.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(zip, "zoekgeschiedenis.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
     elif validation.current_ddp_category.language == Language.EN:
-        b = eh.extract_file_from_zip(zip, "search-history.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(zip, "search-history.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
     else:
         d = {}
@@ -108,11 +111,12 @@ def search_history_to_df(zip: str, validation) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def subscriptions_to_df(youtube_zip: str, validation) -> pd.DataFrame:
+def subscriptions_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFrame:
     """
     Parses 'subscriptions.csv' or 'abonnementen.csv' from Youtube DDP
     """
@@ -125,16 +129,17 @@ def subscriptions_to_df(youtube_zip: str, validation) -> pd.DataFrame:
     else:
         file_name = ""
 
-    ratings_bytes = eh.extract_file_from_zip(youtube_zip, file_name)
+    ratings_bytes = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
     df = eh.read_csv_from_bytes_to_df(ratings_bytes)
     return df
 
 
-def extraction(zip: str, validation: ValidateInput) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_kijkgeschiedenis",
-            data_frame=watch_history_to_df(zip, validation),
+            data_frame=watch_history_to_df(zip, validation, errors),
             title=props.Translatable({
                 "nl": "Your watch history",
                 "en": "Your watch history"
@@ -157,7 +162,7 @@ def extraction(zip: str, validation: ValidateInput) -> list[d3i_props.PropsUIPro
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_zoekgeschiedenis",
-            data_frame=search_history_to_df(zip, validation),
+            data_frame=search_history_to_df(zip, validation, errors),
             title=props.Translatable({
                 "nl": "Your search history",
                 "en": "Your search history"
@@ -180,7 +185,7 @@ def extraction(zip: str, validation: ValidateInput) -> list[d3i_props.PropsUIPro
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_abonnementen",
-            data_frame=subscriptions_to_df(zip, validation),
+            data_frame=subscriptions_to_df(zip, validation, errors),
             title=props.Translatable({
                 "nl": "Abonnementen",
                 "en": "Subscriptions"
@@ -192,11 +197,14 @@ def extraction(zip: str, validation: ValidateInput) -> list[d3i_props.PropsUIPro
         )
     ]
     
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class YouTubeFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "YouTube")
         
     def validate_file(self, file):
