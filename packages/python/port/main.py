@@ -56,10 +56,15 @@ class ScriptWrapper(Generator):
         self._error_handler = None
         self.queue: deque = deque()
 
-    def add_log_handler(self, logger_name: str = "port") -> None:
-        """Attach a handler to the named logger that forwards log records as CommandSystemLog commands."""
+    def add_log_handler(self, logger_name: str = "port.bridge") -> None:
+        """Attach a handler to the named logger that forwards log records as CommandSystemLog commands.
+
+        Only port.bridge should be forwarded — it contains PII-free milestones.
+        Other port.* loggers stay local (browser console only). See AD0010.
+        """
         logger = logging.getLogger(logger_name)
         logger.setLevel(logging.DEBUG)
+        logger.propagate = False
         handler = LogForwardingHandler(self.queue)
         handler.setLevel(logging.INFO)
         handler.setFormatter(logging.Formatter("%(name)s: %(message)s"))
