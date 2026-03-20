@@ -8,11 +8,13 @@ It handles DDPs in the english language with filetype JSON.
 """
 
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
@@ -37,10 +39,10 @@ DDP_CATEGORIES = [
 ]
 
 
-def who_youve_followed_to_df(facebook_zip: str) -> pd.DataFrame:
+def who_youve_followed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "who_you_ve_followed.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "who_you_ve_followed.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -50,21 +52,22 @@ def who_youve_followed_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in items:
             datapoints.append((
                 eh.fix_latin1_string(item.get("name", "")),
-                eh.epoch_to_iso(item.get("timestamp", {}))
+                eh.epoch_to_iso(item.get("timestamp", {}), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Name", "Timestamp"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def news_your_locations_to_df(facebook_zip: str) -> pd.DataFrame:
+def news_your_locations_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "facebook_news/your_locations.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "facebook_news/your_locations.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -79,14 +82,15 @@ def news_your_locations_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def notifications_to_df(facebook_zip: str) -> pd.DataFrame:
+def notifications_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "notifications/notifications.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "notifications/notifications.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -99,21 +103,22 @@ def notifications_to_df(facebook_zip: str) -> pd.DataFrame:
                 eh.find_item(denested_dict, "text"),
                 eh.find_item(denested_dict, "href"),
                 eh.find_item(denested_dict, "unread"),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Text", "Link", "Gelezen", "Datum"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def content_sharing_you_have_created_to_df(facebook_zip: str) -> pd.DataFrame:
+def content_sharing_you_have_created_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "content_sharing_links_you_have_created.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "content_sharing_links_you_have_created.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -123,21 +128,22 @@ def content_sharing_you_have_created_to_df(facebook_zip: str) -> pd.DataFrame:
             denested_dict = eh.dict_denester(item)
             datapoints.append((
                 eh.find_item(denested_dict, "href"),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Link", "Datum en Tijd"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def facebook_reels_usage_to_df(facebook_zip: str) -> pd.DataFrame:
+def facebook_reels_usage_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "facebook_reels_usage_information.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "facebook_reels_usage_information.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -156,14 +162,15 @@ def facebook_reels_usage_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def last_28_days_to_df(facebook_zip: str) -> pd.DataFrame:
+def last_28_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_facebook_watch_activity_in_the_last_28_days.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_facebook_watch_activity_in_the_last_28_days.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -178,14 +185,15 @@ def last_28_days_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_search_history_to_df(facebook_zip: str) -> pd.DataFrame:
+def your_search_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_search_history.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_search_history.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -197,21 +205,22 @@ def your_search_history_to_df(facebook_zip: str) -> pd.DataFrame:
 
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(denested_dict, "text")),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Zoekterm", "Datum"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_friends_to_df(facebook_zip: str) -> pd.DataFrame:
+def your_friends_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_friends.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_friends.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -224,14 +233,15 @@ def your_friends_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def ads_interests_to_df(facebook_zip: str) -> pd.DataFrame:
+def ads_interests_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "ads_interests.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "ads_interests.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -246,13 +256,14 @@ def ads_interests_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "recently_viewed.json")
-    d = eh.read_json_from_bytes(b)
+def recently_viewed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "recently_viewed.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -267,7 +278,7 @@ def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
                         eh.fix_latin1_string(item.get("name", "")),
                         eh.fix_latin1_string(entry.get("data", {}).get("name", "")),
                         entry.get("data", {}).get("uri", ""),
-                        eh.epoch_to_iso(entry.get("timestamp", ""))
+                        eh.epoch_to_iso(entry.get("timestamp", ""), errors=errors)
                     ))
 
             # The nesting goes deeper
@@ -278,20 +289,21 @@ def recently_viewed_to_df(facebook_zip: str) -> pd.DataFrame:
                             eh.fix_latin1_string(child.get("name", "")),
                             eh.fix_latin1_string(entry.get("data", {}).get("name", "")),
                             entry.get("data", {}).get("uri", ""),
-                            eh.epoch_to_iso(entry.get("timestamp", ""))
+                            eh.epoch_to_iso(entry.get("timestamp", ""), errors=errors)
                         ))
 
         out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def recently_visited_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "recently_visited.json")
-    d = eh.read_json_from_bytes(b)
+def recently_visited_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "recently_visited.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -305,20 +317,21 @@ def recently_visited_to_df(facebook_zip: str) -> pd.DataFrame:
                         item.get("name", ""),
                         eh.fix_latin1_string(entry.get("data", {}).get("name", "")),
                         entry.get("data", {}).get("uri", ""),
-                        eh.epoch_to_iso(entry.get("timestamp", ""))
+                        eh.epoch_to_iso(entry.get("timestamp", ""), errors=errors)
                     ))
 
         out = pd.DataFrame(datapoints, columns=["Watched", "Name", "Link", "Date"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def profile_update_history_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "profile_update_history.json")
-    d = eh.read_json_from_bytes(b)
+def profile_update_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "profile_update_history.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -328,20 +341,21 @@ def profile_update_history_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in items:
             datapoints.append((
                 eh.fix_latin1_string(item.get("title", "")),
-                eh.epoch_to_iso(item.get("timestamp", ""))
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Timestamp"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
     return out
 
 
-def your_event_responses_to_df(facebook_zip: str) -> pd.DataFrame:
+def your_event_responses_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_event_responses.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_event_responses.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -351,21 +365,22 @@ def your_event_responses_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in items:
             datapoints.append((
                 eh.fix_latin1_string(item.get("name", "")),
-                eh.epoch_to_iso(item.get("start_timestamp", ""))
+                eh.epoch_to_iso(item.get("start_timestamp", ""), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Name", "Timestamp"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def group_posts_and_comments_to_df(facebook_zip: str) -> pd.DataFrame:
+def group_posts_and_comments_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "group_posts_and_comments.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "group_posts_and_comments.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -378,7 +393,7 @@ def group_posts_and_comments_to_df(facebook_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(denested_dict, "title")),
                 eh.fix_latin1_string(eh.find_item(denested_dict, "post")),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
                 eh.find_item(denested_dict, "url"),
             ))
 
@@ -386,21 +401,22 @@ def group_posts_and_comments_to_df(facebook_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def your_answers_to_membership_questions_to_df(facebook_zip: str) -> pd.DataFrame:
+def your_answers_to_membership_questions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_answers_to_membership_questions.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_answers_to_membership_questions.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
 
     try:
-                  
+
         items = d["group_membership_questions_answers_v2"]["group_answers"]  # pyright: ignore
         for item in items:
             datapoints.append((
@@ -410,14 +426,15 @@ def your_answers_to_membership_questions_to_df(facebook_zip: str) -> pd.DataFram
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_comments_in_groups_to_df(facebook_zip: str) -> pd.DataFrame:
+def your_comments_in_groups_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_comments_in_groups.json")
-    d = eh.read_json_from_bytes(b)
+    b = eh.extract_file_from_zip(facebook_zip, "your_comments_in_groups.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -431,20 +448,21 @@ def your_comments_in_groups_to_df(facebook_zip: str) -> pd.DataFrame:
                 eh.fix_latin1_string(eh.find_item(denested_dict, "title")),
                 eh.fix_latin1_string(eh.find_item(denested_dict, "comment-comment")),
                 eh.fix_latin1_string(eh.find_item(denested_dict, "group")),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Comment", "Group", "Timestamp"]) #pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_group_membership_activity_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_group_membership_activity.json")
-    d = eh.read_json_from_bytes(b)
+def your_group_membership_activity_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "your_group_membership_activity.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -457,21 +475,22 @@ def your_group_membership_activity_to_df(facebook_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(denested_dict, "title")),
                 eh.fix_latin1_string(eh.find_item(denested_dict, "name")),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Group name", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def pages_and_profiles_you_follow_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "pages_and_profiles_you_follow.json")
-    d = eh.read_json_from_bytes(b)
+def pages_and_profiles_you_follow_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "pages_and_profiles_you_follow.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -481,20 +500,21 @@ def pages_and_profiles_you_follow_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in items:
             datapoints.append((
                 eh.fix_latin1_string(item.get("title", "")),
-                eh.epoch_to_iso(item.get("timestamp", ""))
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def pages_youve_liked_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "pages_you_ve_liked.json")
-    d = eh.read_json_from_bytes(b)
+def pages_youve_liked_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "pages_you_ve_liked.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -505,20 +525,21 @@ def pages_youve_liked_to_df(facebook_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(item.get("name", "")),
                 item.get("url", ""),
-                eh.epoch_to_iso(item.get("timestamp", ""))
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Name", "Url", "Timestamp"]) # pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_saved_items_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_saved_items.json")
-    d = eh.read_json_from_bytes(b)
+def your_saved_items_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "your_saved_items.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -528,21 +549,22 @@ def your_saved_items_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in items:
             datapoints.append((
                 eh.fix_latin1_string(item.get("title", "")),
-                eh.epoch_to_iso(item.get("timestamp", ""))
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors)
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def comments_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "comments_and_reactions/comments.json")
-    d = eh.read_json_from_bytes(b)
+def comments_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "comments_and_reactions/comments.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -555,18 +577,19 @@ def comments_to_df(facebook_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(eh.find_item(denested_dict, "title")),
                 eh.fix_latin1_string(eh.find_item(denested_dict, "comment-comment")),
-                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Comment", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
+def likes_and_reactions_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     """
     likes_and_reactions_x
     """
@@ -576,8 +599,8 @@ def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
     i = 1
 
     while True:
-        b = eh.extract_file_from_zip(instagram_zip, f"likes_and_reactions_{i}.json")
-        d = eh.read_json_from_bytes(b)
+        b = eh.extract_file_from_zip(instagram_zip, f"likes_and_reactions_{i}.json", errors=errors)
+        d = eh.read_json_from_bytes(b, errors=errors)
 
         if not d:
             break
@@ -589,13 +612,14 @@ def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
                 datapoints.append((
                     eh.fix_latin1_string(eh.find_item(denested_dict, "title")),
                     eh.fix_latin1_string(eh.find_item(denested_dict, "reaction-reaction")),
-                    eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp")),
+                    eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
                 ))
 
             i += 1
 
         except Exception as e:
             logger.error("Exception caught: %s", e)
+            errors[type(e).__name__] += 1
             return pd.DataFrame()
 
     out = pd.DataFrame(datapoints, columns=["Title", "Reaction", "Timestamp"]) #pyright: ignore
@@ -604,9 +628,9 @@ def likes_and_reactions_to_df(instagram_zip: str) -> pd.DataFrame:
 
 
 
-def your_comment_active_days_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_comment_active_days.json")
-    d = eh.read_json_from_bytes(b)
+def your_comment_active_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "your_comment_active_days.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -620,17 +644,18 @@ def your_comment_active_days_to_df(facebook_zip: str) -> pd.DataFrame:
             ))
 
         out = pd.DataFrame(datapoints, columns=["Label", "Value"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def your_pages_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_pages.json")
-    d = eh.read_json_from_bytes(b)
+def your_pages_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "your_pages.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -641,20 +666,21 @@ def your_pages_to_df(facebook_zip: str) -> pd.DataFrame:
             datapoints.append((
                 eh.fix_latin1_string(item.get("name", "")),
                 item.get("url", ""),
-                eh.epoch_to_iso(item.get("timestamp", "")),
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Name", "Url", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def story_reactions_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "story_reactions.json")
-    d = eh.read_json_from_bytes(b)
+def story_reactions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "story_reactions.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -667,16 +693,17 @@ def story_reactions_to_df(facebook_zip: str) -> pd.DataFrame:
             ))
 
         out = pd.DataFrame(datapoints, columns=["Titel"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def your_posts_check_ins_to_df(facebook_zip: str) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_posts__check_ins__photos_and_videos_1.json")
-    d = eh.read_json_from_bytes(b)
+def your_posts_check_ins_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+    b = eh.extract_file_from_zip(facebook_zip, "your_posts__check_ins__photos_and_videos_1.json", errors=errors)
+    d = eh.read_json_from_bytes(b, errors=errors)
 
     out = pd.DataFrame()
     datapoints = []
@@ -685,22 +712,24 @@ def your_posts_check_ins_to_df(facebook_zip: str) -> pd.DataFrame:
         for item in d:
             datapoints.append((
                 eh.fix_latin1_string(item.get("title", "")),
-                eh.epoch_to_iso(item.get("timestamp", "")),
+                eh.epoch_to_iso(item.get("timestamp", ""), errors=errors),
             ))
 
         out = pd.DataFrame(datapoints, columns=["Title", "Timestamp"]) #pyright: ignore
-        
+
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(facebook_zip: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_who_youve_followed",
-            data_frame=who_youve_followed_to_df(facebook_zip),
+            data_frame=who_youve_followed_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Who you follow",
                 "nl": "Wie je volgt",
@@ -712,7 +741,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_news_your_locations",
-            data_frame=news_your_locations_to_df(facebook_zip),
+            data_frame=news_your_locations_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "The locations Facebook news is set to",
                 "nl": "De locaties waar Facebook Nieuws op is ingesteld",
@@ -724,7 +753,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_notifications",
-            data_frame=notifications_to_df(facebook_zip),
+            data_frame=notifications_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Notifications Facebook sent you",
                 "nl": "Notificaties die Facebook je stuurde",
@@ -736,7 +765,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_reels_usage",
-            data_frame=facebook_reels_usage_to_df(facebook_zip),
+            data_frame=facebook_reels_usage_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Interactions with Facebook Reels",
                 "nl": "Interacties met Facebook Reels",
@@ -748,7 +777,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_last_28",
-            data_frame=last_28_days_to_df(facebook_zip),
+            data_frame=last_28_days_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "How many videos you watched in the last 28 days",
                 "nl": "Hoeveel video's je de afgelopen 28 dagen hebt bekeken",
@@ -760,7 +789,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_search_history",
-            data_frame=your_search_history_to_df(facebook_zip),
+            data_frame=your_search_history_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your search history",
                 "nl": "Je zoekgeschiedenis",
@@ -783,7 +812,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_visited",
-            data_frame=recently_visited_to_df(facebook_zip),
+            data_frame=recently_visited_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Profiles you visited recently",
                 "nl": "Profielen die je recentelijk hebt bezocht",
@@ -795,7 +824,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_viewed",
-            data_frame=recently_viewed_to_df(facebook_zip),
+            data_frame=recently_viewed_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Facebook items you recently viewed",
                 "nl": "Facebook items die je recentelijk hebt bekeken",
@@ -807,7 +836,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_profile_update_history",
-            data_frame=profile_update_history_to_df(facebook_zip),
+            data_frame=profile_update_history_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "History of your profile updates",
                 "nl": "Geschiedenis van je profielupdates",
@@ -819,7 +848,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_likes_and_reactions",
-            data_frame=likes_and_reactions_to_df(facebook_zip),
+            data_frame=likes_and_reactions_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Likes and reactions on Facebook",
                 "nl": "Likes en reacties op Facebook",
@@ -831,7 +860,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_group_membership_activity",
-            data_frame=your_group_membership_activity_to_df(facebook_zip),
+            data_frame=your_group_membership_activity_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Facebook groups you are a member of",
                 "nl": "Facebookgroepen waar je lid van bent",
@@ -843,7 +872,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_pages_and_profiles_you_follow_to_df",
-            data_frame=pages_and_profiles_you_follow_to_df(facebook_zip),
+            data_frame=pages_and_profiles_you_follow_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Pages and profiles that you follow",
                 "nl": "Pagina's en profielen die je volgt",
@@ -855,7 +884,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_pages_youve_liked_to_df",
-            data_frame=pages_youve_liked_to_df(facebook_zip),
+            data_frame=pages_youve_liked_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Pages that you have liked",
                 "nl": "Pagina's die je leuk vindt",
@@ -867,7 +896,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_posts_and_check_ins",
-            data_frame=your_posts_check_ins_to_df(facebook_zip),
+            data_frame=your_posts_check_ins_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your posts and check-ins",
                 "nl": "Je posts en check-ins",
@@ -879,7 +908,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_story_reactions",
-            data_frame=story_reactions_to_df(facebook_zip),
+            data_frame=story_reactions_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your story reactions",
                 "nl": "Je story-reacties",
@@ -891,7 +920,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_content_sharing_links_you_created",
-            data_frame=content_sharing_you_have_created_to_df(facebook_zip),
+            data_frame=content_sharing_you_have_created_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Links you shared",
                 "nl": "Links die je hebt gedeeld",
@@ -903,7 +932,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_friends",
-            data_frame=your_friends_to_df(facebook_zip),
+            data_frame=your_friends_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your friends on Facebook",
                 "nl": "Je vrienden op Facebook",
@@ -915,7 +944,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_ads_interests",
-            data_frame=ads_interests_to_df(facebook_zip),
+            data_frame=ads_interests_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your ad interests",
                 "nl": "Je advertentie-interesses",
@@ -927,7 +956,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_event_responses",
-            data_frame=your_event_responses_to_df(facebook_zip),
+            data_frame=your_event_responses_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your event responses",
                 "nl": "Je reacties op evenementen",
@@ -939,7 +968,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_group_posts_and_comments",
-            data_frame=group_posts_and_comments_to_df(facebook_zip),
+            data_frame=group_posts_and_comments_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your posts and comments in groups",
                 "nl": "Je berichten en commentaren in groepen",
@@ -951,7 +980,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_answers_to_membership_questions",
-            data_frame=your_answers_to_membership_questions_to_df(facebook_zip),
+            data_frame=your_answers_to_membership_questions_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your answers to group membership questions",
                 "nl": "Je antwoorden op vragen voor groepslidmaatschap",
@@ -963,7 +992,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comments_in_groups",
-            data_frame=your_comments_in_groups_to_df(facebook_zip),
+            data_frame=your_comments_in_groups_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your comments in groups",
                 "nl": "Je commentaren in groepen",
@@ -975,7 +1004,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_saved_items",
-            data_frame=your_saved_items_to_df(facebook_zip),
+            data_frame=your_saved_items_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your saved items",
                 "nl": "Je opgeslagen items",
@@ -987,7 +1016,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_comments",
-            data_frame=comments_to_df(facebook_zip),
+            data_frame=comments_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Your comments",
                 "nl": "Je commentaren",
@@ -999,7 +1028,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comment_active_days",
-            data_frame=your_comment_active_days_to_df(facebook_zip),
+            data_frame=your_comment_active_days_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Days you actively commented",
                 "nl": "Dagen waarop je actief commentaren hebt geplaatst",
@@ -1011,7 +1040,7 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_pages",
-            data_frame=your_pages_to_df(facebook_zip),
+            data_frame=your_pages_to_df(facebook_zip, errors),
             title=props.Translatable({
                 "en": "Pages you manage",
                 "nl": "Pagina's die je beheert",
@@ -1022,7 +1051,10 @@ def extraction(facebook_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTabl
             }),
         ),
     ]
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class FacebookFlow(FlowBuilder):

@@ -8,6 +8,7 @@ It handles DDPs in the english language with filetype CSV.
 """
 
 import logging
+from collections import Counter
 import io
 import re
 
@@ -15,6 +16,7 @@ import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
@@ -73,102 +75,103 @@ def strip_notes(b: io.BytesIO) -> io.BytesIO:
     return out
 
 
-def company_follows_to_df(linkedin_zip: str) -> pd.DataFrame:
+def company_follows_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Company Follows.csv'
     """
     filename = "Company Follows.csv"
 
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def member_follows_to_df(linkedin_zip: str) -> pd.DataFrame:
+def member_follows_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Member_Follows.csv'
     """
     filename = "Member_Follows.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     b = strip_notes(b)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def connections_to_df(linkedin_zip: str) -> pd.DataFrame:
+def connections_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Connections.csv'
     """
     filename = "Connections.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     b = strip_notes(b)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def reactions_to_df(linkedin_zip: str) -> pd.DataFrame:
+def reactions_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Reactions.csv'
     """
     filename = "Reactions.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def ads_clicked_to_df(linkedin_zip: str) -> pd.DataFrame:
+def ads_clicked_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Ads Clicked.csv'
     """
     filename = "Ads Clicked.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def search_queries_to_df(linkedin_zip: str) -> pd.DataFrame:
+def search_queries_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'SearchQueries.csv'
     """
     filename = "SearchQueries.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def shares_to_df(linkedin_zip: str) -> pd.DataFrame:
+def shares_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Shares.csv'
     """
     filename = "Shares.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def comments_to_df(linkedin_zip: str) -> pd.DataFrame:
+def comments_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
     """
     'Comments.csv'
     """
     filename = "Comments.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename)
+    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
     df = eh.read_csv_from_bytes_to_df(b)
 
     return df
 
 
-def extraction(linkedin_zip: str) -> list:
+def extraction(linkedin_zip: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_ads_clicked",
-            data_frame=ads_clicked_to_df(linkedin_zip),
+            data_frame=ads_clicked_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Ads you clicked on",
                 "nl": "Ads clicked"
@@ -180,7 +183,7 @@ def extraction(linkedin_zip: str) -> list:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_comments",
-            data_frame=comments_to_df(linkedin_zip),
+            data_frame=comments_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Your comments on LinkedIn",
                 "nl": "Comments"
@@ -203,7 +206,7 @@ def extraction(linkedin_zip: str) -> list:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linked_in_company_follows",
-            data_frame=company_follows_to_df(linkedin_zip),
+            data_frame=company_follows_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Companies you follow",
                 "nl": "Company follows"
@@ -215,7 +218,7 @@ def extraction(linkedin_zip: str) -> list:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_shares",
-            data_frame=shares_to_df(linkedin_zip),
+            data_frame=shares_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Posts you shared on LinkedIn",
                 "nl": "Shares"
@@ -227,7 +230,7 @@ def extraction(linkedin_zip: str) -> list:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_reactions",
-            data_frame=reactions_to_df(linkedin_zip),
+            data_frame=reactions_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Your reactions on LinkedIn",
                 "nl": "Reactions"
@@ -252,7 +255,7 @@ def extraction(linkedin_zip: str) -> list:
         # Search queries
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_search_queries",
-            data_frame=search_queries_to_df(linkedin_zip),
+            data_frame=search_queries_to_df(linkedin_zip, errors),
             title=props.Translatable({
                 "en": "Your search queries on LinkedIn",
                 "nl": "Search queries"
@@ -275,7 +278,10 @@ def extraction(linkedin_zip: str) -> list:
         )
     ]
     
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class LinkedInFlow(FlowBuilder):

@@ -19,6 +19,7 @@ import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
 from port.helpers.emoji_pattern import EMOJI_PATTERN
@@ -384,7 +385,8 @@ def user_statistics_to_df(df, user):
     return pd.DataFrame(statistics, columns=["Description", "Statistic"]) # pyright: ignore
 
 
-def extraction(df: pd.DataFrame) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(df: pd.DataFrame) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="whatsapp_grou_chat",
@@ -465,7 +467,10 @@ def extraction(df: pd.DataFrame) -> list[d3i_props.PropsUIPromptConsentFormTable
             )
         )
     
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class WhatsAppFlow(FlowBuilder):

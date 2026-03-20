@@ -9,6 +9,7 @@ It handles DDPs in the english language with filetype txt.
 
 from typing import Dict
 import logging
+from collections import Counter
 import io
 import re
 import re
@@ -17,6 +18,7 @@ import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
@@ -82,12 +84,12 @@ DDP_CATEGORIES = [
 
 
 
-def browsing_history_to_df(tiktok_zip: str) -> pd.DataFrame:
+def browsing_history_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Browsing History.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Browsing History.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -96,17 +98,18 @@ def browsing_history_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Time and Date", "Video watched"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def favorite_hashtag_to_df(tiktok_zip: str) -> pd.DataFrame:
+def favorite_hashtag_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Favorite HashTags.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Favorite HashTags.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -115,17 +118,18 @@ def favorite_hashtag_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Tijdstip", "Hashtag url"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def favorite_videos_to_df(tiktok_zip: str) -> pd.DataFrame:
+def favorite_videos_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Favorite Videos.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Favorite Videos.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -134,17 +138,18 @@ def favorite_videos_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Tijdstip", "Video"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def follower_to_df(tiktok_zip: str) -> pd.DataFrame:
+def follower_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Follower.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Follower.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -153,17 +158,18 @@ def follower_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Date"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def following_to_df(tiktok_zip: str) -> pd.DataFrame:
+def following_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Following.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Following.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -172,17 +178,18 @@ def following_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Date"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def hashtag_to_df(tiktok_zip: str) -> pd.DataFrame:
+def hashtag_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Hashtag.txt") # pyright: ignore
+        b = eh.extract_file_from_zip(tiktok_zip, "Hashtag.txt", errors=errors) # pyright: ignore
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -191,18 +198,19 @@ def hashtag_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Hashtag naam", "Hashtag url"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def like_list_to_df(tiktok_zip: str) -> pd.DataFrame:
+def like_list_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Like List.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Like List.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -211,17 +219,18 @@ def like_list_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Tijdstip", "Video"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def searches_to_df(tiktok_zip: str) -> pd.DataFrame:
+def searches_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Searches.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Searches.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -230,18 +239,19 @@ def searches_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Tijdstip", "Zoekterm"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def share_history_to_df(tiktok_zip: str) -> pd.DataFrame:
+def share_history_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Share History.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Share History.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -250,17 +260,18 @@ def share_history_to_df(tiktok_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(matches, columns=["Tijdstip", "Gedeelde inhoud", "Url", "Gedeeld via"]) # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def settings_to_df(tiktok_zip: str) -> pd.DataFrame:
+def settings_to_df(tiktok_zip: str, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
 
     try:
-        b = eh.extract_file_from_zip(tiktok_zip, "Settings.txt")
+        b = eh.extract_file_from_zip(tiktok_zip, "Settings.txt", errors=errors)
         b = io.TextIOWrapper(b, encoding='utf-8')
         text = b.read()
 
@@ -271,16 +282,18 @@ def settings_to_df(tiktok_zip: str) -> pd.DataFrame:
             out = pd.DataFrame(interests, columns=["Interesses"])  # pyright: ignore
 
     except Exception as e:
-        logger.error(e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(tiktok_zip: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_video_browsing_history",
-            data_frame=browsing_history_to_df(tiktok_zip),
+            data_frame=browsing_history_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Watch history", 
                 "nl": "Kijkgeschiedenis"
@@ -293,7 +306,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_favorite_videos",
-            data_frame=favorite_videos_to_df(tiktok_zip),
+            data_frame=favorite_videos_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Favorite video's", 
                 "nl": "Favoriete video's", 
@@ -305,7 +318,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_favorite_hashtags",
-            data_frame=favorite_hashtag_to_df(tiktok_zip),
+            data_frame=favorite_hashtag_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Favorite hashtags", 
                 "nl": "Favoriete hashtags", 
@@ -317,7 +330,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_hashtag",
-            data_frame=hashtag_to_df(tiktok_zip),
+            data_frame=hashtag_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Hashtags in video's die je hebt geplaatst", 
                 "nl": "Hashtags in video's die je hebt geplaatst", 
@@ -329,7 +342,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_like_list",
-            data_frame=like_list_to_df(tiktok_zip),
+            data_frame=like_list_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Videos you have liked", 
                 "nl": "Video's die je hebt geliket", 
@@ -341,7 +354,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_searches",
-            data_frame=searches_to_df(tiktok_zip),
+            data_frame=searches_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Search terms", 
                 "nl": "Zoektermen", 
@@ -360,7 +373,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_share_history",
-            data_frame=share_history_to_df(tiktok_zip),
+            data_frame=share_history_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Shared videos", 
                 "nl": "Gedeelde video's", 
@@ -372,7 +385,7 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="tiktok_settings",
-            data_frame=settings_to_df(tiktok_zip),
+            data_frame=settings_to_df(tiktok_zip, errors),
             title=props.Translatable({
                 "en": "Interests on TikTok", 
                 "nl": "Interesses op TikTok"
@@ -385,7 +398,10 @@ def extraction(tiktok_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableV
     ]
 
     tables_to_render = [table for table in tables if table.data_frame is not None and not table.data_frame.empty]
-    return tables_to_render
+    return ExtractionResult(
+        tables=tables_to_render,
+        errors=errors,
+    )
 
 
 class TikTokFlow(FlowBuilder):

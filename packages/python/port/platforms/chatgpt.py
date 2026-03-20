@@ -7,11 +7,13 @@ Assumptions:
 It handles DDPs in the english language with filetype JSON.
 """
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
@@ -40,9 +42,9 @@ DDP_CATEGORIES = [
 ]
 
 
-def conversations_to_df(chatgpt_zip: str)  -> pd.DataFrame:
-    b = eh.extract_file_from_zip(chatgpt_zip, "conversations.json")
-    conversations = eh.read_json_from_bytes(b)
+def conversations_to_df(chatgpt_zip: str, errors: Counter)  -> pd.DataFrame:
+    b = eh.extract_file_from_zip(chatgpt_zip, "conversations.json", errors=errors)
+    conversations = eh.read_json_from_bytes(b, errors=errors)
 
     datapoints = []
     out = pd.DataFrame()
@@ -58,7 +60,7 @@ def conversations_to_df(chatgpt_zip: str)  -> pd.DataFrame:
                     role = eh.find_item(denested_d, "role")
                     message = "".join(eh.find_items(denested_d, "part"))
                     model = eh.find_item(denested_d, "-model_slug")
-                    time = eh.epoch_to_iso(eh.find_item(denested_d, "create_time"))
+                    time = eh.epoch_to_iso(eh.find_item(denested_d, "create_time"), errors=errors)
 
                     datapoint = {
                         "conversation title": title,
@@ -74,19 +76,21 @@ def conversations_to_df(chatgpt_zip: str)  -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Data extraction error: %s", e)
-        
+        errors[type(e).__name__] += 1
+
     return out
 
 
 
-def extraction(chatgpt_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(chatgpt_zip: str) -> ExtractionResult:
     """
     Add your table definitions below in the list
     """
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="chatgpt_conversations",
-            data_frame=conversations_to_df(chatgpt_zip),
+            data_frame=conversations_to_df(chatgpt_zip, errors),
             title=props.Translatable({
                 "en": "Your conversations with ChatGPT",
                 "nl": "Uw gesprekken met ChatGPT"
@@ -111,7 +115,10 @@ def extraction(chatgpt_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTable
 
     tables_to_render = [table for table in tables if not table.data_frame.empty]
 
-    return tables_to_render
+    return ExtractionResult(
+        tables=tables_to_render,
+        errors=errors,
+    )
 
 
 

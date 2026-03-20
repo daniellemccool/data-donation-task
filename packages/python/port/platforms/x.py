@@ -8,6 +8,7 @@ It handles DDPs in the english language with filetype js.
 """
 
 import logging
+from collections import Counter
 import json
 import io
 import re
@@ -17,6 +18,7 @@ import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 from port.helpers.flow_builder import FlowBuilder
@@ -72,9 +74,9 @@ def bytesio_to_listdict(bytes_to_read: io.BytesIO) -> list[dict[Any, Any]]:
         return out
 
 
-def ad_engagement_to_df(x_zip: str) -> pd.DataFrame:
+def ad_engagement_to_df(x_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(x_zip, "ad-engagements.js")
+    b = eh.extract_file_from_zip(x_zip, "ad-engagements.js", errors=errors)
     items = bytesio_to_listdict(b)
 
     out = pd.DataFrame()
@@ -91,13 +93,14 @@ def ad_engagement_to_df(x_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def personalization_to_df(x_zip: str) -> pd.DataFrame:
+def personalization_to_df(x_zip: str, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(x_zip, "personalization.js")
+    b = eh.extract_file_from_zip(x_zip, "personalization.js", errors=errors)
     items = bytesio_to_listdict(b)
 
     out = pd.DataFrame()
@@ -115,11 +118,12 @@ def personalization_to_df(x_zip: str) -> pd.DataFrame:
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def follower_to_df(x_zip: str) -> pd.DataFrame:
+def follower_to_df(x_zip: str, errors: Counter) -> pd.DataFrame:
     """
     following.js
     """
@@ -127,7 +131,7 @@ def follower_to_df(x_zip: str) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(x_zip, "follower.js")
+    b = eh.extract_file_from_zip(x_zip, "follower.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -137,12 +141,13 @@ def follower_to_df(x_zip: str) -> pd.DataFrame:
             ))
         out = pd.DataFrame(datapoints, columns=["Link to user"]) # pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def following_to_df(twitter_zip: str) -> pd.DataFrame:
+def following_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     """
     following.js
     """
@@ -150,7 +155,7 @@ def following_to_df(twitter_zip: str) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "following.js")
+    b = eh.extract_file_from_zip(twitter_zip, "following.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -160,13 +165,14 @@ def following_to_df(twitter_zip: str) -> pd.DataFrame:
             ))
         out = pd.DataFrame(datapoints, columns=["Link to user"]) # pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def like_to_df(twitter_zip: str) -> pd.DataFrame:
+def like_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     """
     like.js
     """
@@ -174,7 +180,7 @@ def like_to_df(twitter_zip: str) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "like.js")
+    b = eh.extract_file_from_zip(twitter_zip, "like.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -186,12 +192,13 @@ def like_to_df(twitter_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(datapoints, columns=["Tweet Id", "Tweet"]) #pyright: ignore
         out["Tweet Id"] = "https://twitter.com/a/status/" + out["Tweet Id"]
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def tweets_to_df(twitter_zip: str) -> pd.DataFrame:
+def tweets_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     """
     tweets.js
     """
@@ -199,7 +206,7 @@ def tweets_to_df(twitter_zip: str) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "/tweets.js")
+    b = eh.extract_file_from_zip(twitter_zip, "/tweets.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -211,17 +218,18 @@ def tweets_to_df(twitter_zip: str) -> pd.DataFrame:
             ))
         out = pd.DataFrame(datapoints, columns=["Date", "Tweet", "Retweeted"]) #pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def block_to_df(x_zip: str) -> pd.DataFrame:
+def block_to_df(x_zip: str, errors: Counter) -> pd.DataFrame:
     """
     block.js
     """
 
-    b = eh.extract_file_from_zip(x_zip, "/block.js")
+    b = eh.extract_file_from_zip(x_zip, "/block.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     datapoints = []
@@ -235,12 +243,13 @@ def block_to_df(x_zip: str) -> pd.DataFrame:
         out = pd.DataFrame(datapoints, columns=["Blocked users"]) # pyright: ignore
 
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def mute_to_df(twitter_zip: str) -> pd.DataFrame:
+def mute_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     """
     mute.js
     """
@@ -248,7 +257,7 @@ def mute_to_df(twitter_zip: str) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "mute.js")
+    b = eh.extract_file_from_zip(twitter_zip, "mute.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -258,16 +267,17 @@ def mute_to_df(twitter_zip: str) -> pd.DataFrame:
             ))
         out = pd.DataFrame(datapoints, columns=["Muted users"]) # pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def tweet_headers_to_df(twitter_zip: str) -> pd.DataFrame:
+def tweet_headers_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "/tweet-headers.js")
+    b = eh.extract_file_from_zip(twitter_zip, "/tweet-headers.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -281,16 +291,17 @@ def tweet_headers_to_df(twitter_zip: str) -> pd.DataFrame:
 
         out = pd.DataFrame(datapoints, columns=["Tweet id", "User id", "Created at"]) # pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
-def user_link_clicks_to_df(twitter_zip: str) -> pd.DataFrame:
+def user_link_clicks_to_df(twitter_zip: str, errors: Counter) -> pd.DataFrame:
     datapoints = []
     out = pd.DataFrame()
 
-    b = eh.extract_file_from_zip(twitter_zip, "/user-link-clicks.js")
+    b = eh.extract_file_from_zip(twitter_zip, "/user-link-clicks.js", errors=errors)
     ld = bytesio_to_listdict(b)
 
     try:
@@ -304,17 +315,19 @@ def user_link_clicks_to_df(twitter_zip: str) -> pd.DataFrame:
 
         out = pd.DataFrame(datapoints, columns=["Tweet id", "Link", "Datum en tijd"]) # pyright: ignore
     except Exception as e:
-        logger.error("Exception was caught: %s", e)
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
 
     return out
 
 
 
-def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(x_zip: str) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_ad_engagement",
-            data_frame=ad_engagement_to_df(x_zip),
+            data_frame=ad_engagement_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Your engagement with ads",
                 "nl": "Ad engagement"
@@ -326,7 +339,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_follower",
-            data_frame=follower_to_df(x_zip),
+            data_frame=follower_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Your followers",
                 "nl": "Follower"
@@ -338,7 +351,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_following",
-            data_frame=following_to_df(x_zip),
+            data_frame=following_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Accounts you follow",
                 "nl": "Following"
@@ -350,7 +363,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_block",
-            data_frame=block_to_df(x_zip),
+            data_frame=block_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Accounts you blocked",
                 "nl": "Block"
@@ -362,7 +375,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_like",
-            data_frame=like_to_df(x_zip),
+            data_frame=like_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Posts that you liked",
                 "nl": "Like"
@@ -385,7 +398,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_tweet",
-            data_frame=tweets_to_df(x_zip),
+            data_frame=tweets_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Your tweets",
                 "nl": "Jouw Tweets"
@@ -408,7 +421,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_personalization",
-            data_frame=personalization_to_df(x_zip),
+            data_frame=personalization_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Your personalization",
                 "nl": "Personalization"
@@ -420,7 +433,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_mute",
-            data_frame=mute_to_df(x_zip),
+            data_frame=mute_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Accounts you muted",
                 "nl": "Mute"
@@ -432,7 +445,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_tweet_headers",
-            data_frame=tweet_headers_to_df(x_zip),
+            data_frame=tweet_headers_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Tweet headers",
                 "nl": "Tweet headers"
@@ -444,7 +457,7 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="x_user_link_clicks",
-            data_frame=user_link_clicks_to_df(x_zip),
+            data_frame=user_link_clicks_to_df(x_zip, errors),
             title=props.Translatable({
                 "en": "Links you clicked",
                 "nl": "User link clicks"
@@ -457,7 +470,10 @@ def extraction(x_zip: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
     ]
 
     # Filter out tables with empty dataframes
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 
