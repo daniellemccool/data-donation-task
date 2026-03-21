@@ -205,7 +205,7 @@ def last_28_days_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFram
 
 def your_search_history_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    result = reader.json("your_search_history.json")
+    result = reader.json("logged_information/search/your_search_history.json")
     if not result.found:
         return pd.DataFrame()
     d = result.data
@@ -780,7 +780,7 @@ def likes_and_reactions_base_to_df(reader: ZipArchiveReader, errors: Counter) ->
 
     def _parse_items(d: list) -> None:
         for item in d:
-            lv = {x["label"]: x.get("value", "") for x in item.get("label_values", [])}
+            lv = {x.get("label", ""): x.get("value", "") for x in item.get("label_values", [])}
             datapoints.append((
                 lv.get("Reaction", ""),
                 eh.fix_latin1_string(lv.get("Name", "")),

@@ -253,6 +253,10 @@ def epoch_to_iso(epoch_timestamp: str | int | float, errors: Counter | None = No
         >>> epoch_to_iso(1632139200)
         "2021-09-20T12:00:00+00:00"
     """
+    # Empty/falsy timestamps are expected absences, not errors
+    if not epoch_timestamp and epoch_timestamp != 0:
+        return ""
+
     out = str(epoch_timestamp)
     try:
         epoch_timestamp = int(float(epoch_timestamp))
