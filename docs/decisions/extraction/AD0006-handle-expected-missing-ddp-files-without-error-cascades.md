@@ -10,6 +10,9 @@ comments:
     - author: Danielle McCool
       comment: "3"
       date: "2026-03-21 15:15:11"
+    - author: Danielle McCool
+      comment: "4"
+      date: "2026-03-21 15:24:08"
 links:
     precedes: []
     succeeds: []
@@ -59,4 +62,4 @@ Researchers configuring which tables to extract need to know which files actuall
 We decided for [Option 4](#option-4) because: Validation already walks the zip namelist — caching it on ValidateInput avoids redundant zip opens (25+ per Facebook extraction). ZipArchiveReader in helpers/ provides json()/csv()/raw() methods with found/not-found result types so platforms can cleanly skip absent files with 0 false errors. Deterministic path-boundary-aware resolution replaces the fragile first-regex-suffix-match behavior that caused wrong-file extractions. Options 1-2 were partial: Option 1 (sentinel) still cascades through read_json_from_bytes. Option 2 (pre-filter) puts file-existence checks in the wrong layer. Option 3 (downgrade logs) was rejected — hiding errors is not fixing them. The hybrid approach keeps responsibilities clean: validation discovers — helper resolves — platform parses.
 
 ## <a name="comments"></a> Comments
-<a name="comment-3"></a>3. (2026-03-21 15:15:11) Danielle McCool: Implementation spec: docs/superpowers/specs/2026-03-21-archive-member-caching-design.md. Key components: ValidateInput.archive_members (repr=False for PII safety) — ZipArchiveReader with resolve_member() using path-boundary-aware matching — JsonExtractionResult/CsvExtractionResult/RawExtractionResult with found flag and safe defaults. See python-architecture/AD0001 for layered architecture (reader lives in helpers/) and python-architecture/AD0011 for PII logging boundary (archive_members is internal-only).
+<a name="comment-4"></a>4. (2026-03-21 15:24:08) Danielle McCool: Follow-up: ExtractionResult.errors (Counter[str]) currently provides type→count only. For richer diagnostics (e.g. AmbiguousMemberMatch should include the requested filename) — consider extending to a structured error list alongside the Counter. This feeds into the future consent-gated error donation page. Not in scope for the initial ZipArchiveReader implementation.
