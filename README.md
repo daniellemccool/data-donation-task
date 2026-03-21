@@ -1,59 +1,92 @@
 # The data donation task
 
-The data donation task (a fork of [Feldspar](https://github.com/eyra/feldspar)) is front end that guides participants through the data donation steps, used in conjunction with Next.
+The data donation task (a fork of [Feldspar](https://github.com/eyra/feldspar)) is a front end that guides participants through the data donation steps, used in conjunction with Next.
 Next is a software as a service platform developed by [Eyra](https://eyra.co/) to facilitate scientific research.
 
-## Documentation
-
-Because we are extracting fields from five platforms in five different languages, we decided to introduce a declarative 'Entry' to represent a table to be extracted.
-Each entry represents a tree of fields to be extracted from a target json structure and converted into a tabular form.
-See [parsers.py](https://github.com/what-if-horizon/what-if-data-donation/blob/master/packages/python/port/helpers/parsers.py) for the Entry class definition
-and especially the `extract_rows` method that is responsible for extracting the tabular values from the json tree.
-All platforms are essentially thin wrappers around a call to that function for each entry.
-
-Entries are generated automatically and placed in [entries_data.py](https://github.com/what-if-horizon/what-if-data-donation/blob/master/packages/python/port/helpers/entries_data.py).
-For an overview of the generation process, see the [workflow documentation](https://github.com/what-if-horizon/what-if-data-donation/blob/master/workflow_data_donation_tool.md).
-
-There are also limited unit/integration tests, especially a number of [scenarios](https://github.com/what-if-horizon/what-if-data-donation/tree/master/pytests/scenarios)
-based on completely anonymized [public test files](https://github.com/what-if-horizon/what-if-data-donation/tree/master/pytests/public_testfiles). To run the tests:
-
-```{sh}
-python -m venv .venv
-.venv/bin/pip install -e.[dev]
-.venv/bin/pytest
-```
-
-Note: This repository is based on the [original data donation repository published by d3i](https://github.com/d3i-infra/data-donation-task).
-Please see that repository, and especially their [documentation](https://d3i-infra.github.io/data-donation-task/) for general information about the data donation task and software.
-
+This repository is based on the [d3i data donation task](https://github.com/d3i-infra/data-donation-task).
+Please see that repository and their [documentation](https://d3i-infra.github.io/data-donation-task/) for general information.
 
 ## Installation and local testing
 
-In order to start a local instance of the data donation task go through the following steps:
+### Pre-requisites
 
-0. Pre-requisites
+- Fork or clone this repo
+- Install [Node.js](https://nodejs.org/en)
+- Install [pnpm](https://pnpm.io/)
+- Install [Python](https://www.python.org/)
+- Install [Poetry](https://python-poetry.org/)
 
-   - Fork or clone this repo
-   - Install [Node.js](https://nodejs.org/en)
-   - Install [Python](https://www.python.org/)
-   - Install [Poetry](https://python-poetry.org/)
+### Setup
 
-1. Install dependencies & tools:
+```sh
+pnpm install
+cd packages/python && poetry install
+```
 
-   ```sh
-   pnpm install
-   ```
+### Check environment
 
-2. Start the local web server:
+```sh
+pnpm doctor
+```
 
-   ```sh
-   pnpm run start
-   ```
+### Start local dev server
 
-3. You can now go to the browser: [`http://localhost:3000`](http://localhost:3000).
+```sh
+pnpm start
+```
 
-If the installation went correctly you should be greeted with a mock data donation study.
+Visit [`http://localhost:3000`](http://localhost:3000).
 
-## Building the release files
+## Commands
 
-After installing the dependencies as above, run `npm run release` to build a release file for each platform.
+### Development
+
+| Command | Description |
+|---|---|
+| `pnpm start` | Start dev server with hot reload |
+| `pnpm run build` | Full production build (Python wheel + feldspar + data-collector) |
+| `pnpm doctor` | Check environment setup (13 checks) |
+
+### Testing & Type Checking
+
+| Command | Description |
+|---|---|
+| `pnpm test` | Run Python tests |
+| `pnpm test:py` | Same as above |
+| `pnpm test:py -- tests/test_specific.py -q` | Run specific tests |
+| `pnpm typecheck:py` | Run Pyright type checker |
+| `pnpm verify:py` | Run both tests + type checks |
+
+### Releases
+
+| Command | Description |
+|---|---|
+| `pnpm release` | Build single all-platform release zip |
+| `pnpm release:platforms` | Build one zip per platform (for Eyra Next) |
+
+Per-platform releases are created in `releases/<timestamp>/` with one zip per platform, each filtered via `VITE_PLATFORM`.
+
+## Architecture
+
+See `docs/decisions/` for architectural decision records. Key structure:
+
+```
+packages/
+  python/         Python extraction scripts (per-platform)
+  feldspar/       Workflow UI framework (upstream Eyra)
+  data-collector/ Host app / dev server with custom UI components
+```
+
+### Platform extraction flow
+
+Each platform (Instagram, Facebook, YouTube, etc.) has a `FlowBuilder` subclass in `packages/python/port/platforms/` that handles:
+
+1. File prompt → participant uploads DDP zip
+2. Validation → DDP category detection via `DDP_CATEGORIES`
+3. Extraction → `ZipArchiveReader` reads files from cached archive inventory
+4. Consent → participant reviews extracted tables
+5. Donation → data sent to host platform
+
+### Supported platforms
+
+LinkedIn, Instagram, Facebook, YouTube, TikTok, Netflix, ChatGPT, WhatsApp, X, Chrome
