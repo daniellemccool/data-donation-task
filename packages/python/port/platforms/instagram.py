@@ -7,8 +7,6 @@ Assumptions:
 It handles DDPs in the english language with filetype JSON.
 """
 import logging
-import re
-import zipfile
 from collections import Counter
 from typing import Any
 
@@ -19,6 +17,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -84,33 +83,6 @@ DDP_CATEGORIES = [
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def _zip_member_names(instagram_zip: str) -> list[str]:
-    """List all member names in the zip archive."""
-    if hasattr(instagram_zip, "seek"):
-        instagram_zip.seek(0)  # type: ignore[union-attr]
-
-    with zipfile.ZipFile(instagram_zip, "r") as zf:
-        return zf.namelist()
-
-
-def _read_json_member(instagram_zip: str, member_name: str, errors: Counter) -> dict[str, Any] | list[Any]:
-    """Read and parse a single JSON member from the zip."""
-    return eh.read_json_from_bytes(
-        eh.extract_file_from_zip(instagram_zip, member_name, errors=errors),
-        errors=errors,
-    )
-
-
-def _read_json_members_matching(instagram_zip: str, pattern: str, errors: Counter) -> list[dict[str, Any] | list[Any]]:
-    """Read all JSON members whose path matches *pattern* (regex)."""
-    compiled = re.compile(pattern)
-    return [
-        _read_json_member(instagram_zip, member_name, errors)
-        for member_name in _zip_member_names(instagram_zip)
-        if compiled.search(member_name)
-    ]
-
-
 def _sort_by_date(out: pd.DataFrame, date_column: str) -> pd.DataFrame:
     """Sort a DataFrame by a date column (no renaming)."""
     return out.sort_values(by=date_column, key=eh.sort_isotimestamp_empty_timestamp_last)
@@ -167,13 +139,15 @@ def _extract_owner_details(label_values: list[dict[str, Any]]) -> tuple[str, str
 # Per-table extraction functions
 # ---------------------------------------------------------------------------
 
-def followers_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def followers_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     followers_1.json can be a bare top-level list (newer exports) or wrapped
     under a 'relationships_followers' key (older exports).
     """
-    b = eh.extract_file_from_zip(instagram_zip, "followers_1.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("followers_1.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -201,10 +175,12 @@ def followers_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def following_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def following_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "following.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("following.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -228,10 +204,12 @@ def following_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def ads_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def ads_viewed_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "ads_viewed.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("ads_viewed.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -263,10 +241,12 @@ def ads_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def posts_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def posts_viewed_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "posts_viewed.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("posts_viewed.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -303,10 +283,12 @@ def posts_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def videos_watched_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def videos_watched_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "videos_watched.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("videos_watched.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -343,16 +325,18 @@ def videos_watched_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def post_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def post_comments_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
     out = pd.DataFrame()
     datapoints = []
 
     try:
-        data_files = _read_json_members_matching(
-            instagram_zip, r"(^|/)post_comments(?:_\d+)?\.json$", errors
-        )
-        for data in data_files:
+        results = reader.json_all(r"(^|/)post_comments(?:_\d+)?\.json$")
+        if not results:
+            return pd.DataFrame()
+
+        for result in results:
+            data = result.data
             items = data if isinstance(data, list) else data.get("comments_media_comments", [])
             for item in items:  # pyright: ignore[assignment]
                 string_map_data = item.get("string_map_data", {})
@@ -375,10 +359,12 @@ def post_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def liked_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def liked_comments_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "liked_comments.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("liked_comments.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -412,10 +398,12 @@ def liked_comments_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def liked_posts_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def liked_posts_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "liked_posts.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("liked_posts.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -449,10 +437,12 @@ def liked_posts_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def profile_searches_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def profile_searches_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "profile_searches.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("profile_searches.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -475,10 +465,12 @@ def profile_searches_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def story_likes_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def story_likes_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "story_likes.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("story_likes.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -510,10 +502,12 @@ def story_likes_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def threads_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def threads_viewed_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "threads_viewed.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("threads_viewed.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -550,10 +544,12 @@ def threads_viewed_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def saved_posts_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def saved_posts_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(instagram_zip, "saved_posts.json", errors=errors)
-    data = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("saved_posts.json")
+    if not result.found:
+        return pd.DataFrame()
+    data = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -586,12 +582,14 @@ def saved_posts_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
 # Main extraction & flow
 # ---------------------------------------------------------------------------
 
-def extraction(instagram_zip: str) -> ExtractionResult:
+def extraction(instagram_zip: str, validation) -> ExtractionResult:
     errors = Counter()
+    reader = ZipArchiveReader(instagram_zip, validation.archive_members, errors)
+
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_followers",
-            data_frame=followers_to_df(instagram_zip, errors),
+            data_frame=followers_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your Instagram followers",
                 "nl": "Je Instagram-volgers",
@@ -608,7 +606,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_following",
-            data_frame=following_to_df(instagram_zip, errors),
+            data_frame=following_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Accounts that you follow on Instagram",
                 "nl": "Accounts die je volgt op Instagram",
@@ -625,7 +623,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_ads_viewed",
-            data_frame=ads_viewed_to_df(instagram_zip, errors),
+            data_frame=ads_viewed_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Ads viewed on Instagram",
                 "nl": "Advertenties bekeken op Instagram",
@@ -643,7 +641,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_posts_viewed",
-            data_frame=posts_viewed_to_df(instagram_zip, errors),
+            data_frame=posts_viewed_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Posts viewed on Instagram",
                 "nl": "Berichten bekeken op Instagram",
@@ -692,7 +690,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_videos_watched",
-            data_frame=videos_watched_to_df(instagram_zip, errors),
+            data_frame=videos_watched_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Videos watched on Instagram",
                 "nl": "Video's bekeken op Instagram",
@@ -726,7 +724,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_post_comments",
-            data_frame=post_comments_to_df(instagram_zip, errors),
+            data_frame=post_comments_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Comments posted on Instagram",
                 "nl": "Reacties geplaatst op Instagram",
@@ -743,7 +741,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_liked_comments",
-            data_frame=liked_comments_to_df(instagram_zip, errors),
+            data_frame=liked_comments_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Instagram liked comments",
                 "nl": "Instagram-reacties die je leuk vond",
@@ -760,7 +758,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_liked_posts",
-            data_frame=liked_posts_to_df(instagram_zip, errors),
+            data_frame=liked_posts_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Instagram liked posts",
                 "nl": "Instagram-berichten die je leuk vond",
@@ -788,7 +786,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_profile_searches",
-            data_frame=profile_searches_to_df(instagram_zip, errors),
+            data_frame=profile_searches_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your Instagram profile searches",
                 "nl": "Je Instagram-profielzoekopdrachten",
@@ -804,7 +802,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_story_likes",
-            data_frame=story_likes_to_df(instagram_zip, errors),
+            data_frame=story_likes_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Story likes on Instagram",
                 "nl": "Story-likes op Instagram",
@@ -820,7 +818,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_threads_viewed",
-            data_frame=threads_viewed_to_df(instagram_zip, errors),
+            data_frame=threads_viewed_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Threads viewed",
                 "nl": "Threads bekeken",
@@ -837,7 +835,7 @@ def extraction(instagram_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="instagram_saved_posts",
-            data_frame=saved_posts_to_df(instagram_zip, errors),
+            data_frame=saved_posts_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your saved posts on Instagram",
                 "nl": "Je opgeslagen berichten op Instagram",
@@ -868,7 +866,7 @@ class InstagramFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
 
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):
