@@ -16,13 +16,22 @@ port them upstream via PR once proven working.
 | `d3i-infra`| `https://github.com/d3i-infra/data-donation-task.git` | Upstream target (PR only) |
 | `eyra`     | `https://github.com/eyra/feldspar.git`          | Upstream source             |
 
-## Tests & Build
+## Tests, Type Checking & Build
+
+**Use these canonical commands — never call pytest or pyright directly:**
 
 ```bash
-cd packages/python && poetry run pytest -v
+pnpm test               # run Python tests (alias for test:py)
+pnpm test:py            # run Python tests (works from any cwd/worktree)
+pnpm test:py -- tests/test_specific.py -q  # run specific tests
+pnpm typecheck:py       # run Pyright type checker
+pnpm verify:py          # run both tests + type checks
+pnpm doctor             # check environment setup
 pnpm run build          # full build (Python wheel + feldspar + data-collector)
 pnpm run start          # dev server at localhost:3000
 ```
+
+**If verification fails because the environment is broken, do not skip silently — report the blocker explicitly.** Run `pnpm doctor` to diagnose.
 
 ## Forbidden
 
