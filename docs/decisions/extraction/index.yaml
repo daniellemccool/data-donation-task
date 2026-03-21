@@ -87,7 +87,7 @@ decisions:
     "0006":
         adr_id: "0006"
         title: Handle expected-missing DDP files without error cascades
-        status: open
+        status: decided
         tags:
             - extraction-helpers
             - ddp-compatibility
@@ -99,3 +99,9 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-20 15:29:51"
               comment: "1"
+            - author: Danielle McCool
+              date: "2026-03-21 15:15:01"
+              comment: "2"
+            - author: Danielle McCool
+              date: "2026-03-21 15:15:11"
+              comment: "3"

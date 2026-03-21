@@ -4,10 +4,16 @@ comments:
     - author: Danielle McCool
       comment: "1"
       date: "2026-03-20 15:29:51"
+    - author: Danielle McCool
+      comment: "2"
+      date: "2026-03-21 15:15:01"
+    - author: Danielle McCool
+      comment: "3"
+      date: "2026-03-21 15:15:11"
 links:
     precedes: []
     succeeds: []
-status: open
+status: decided
 tags:
     - extraction-helpers
     - ddp-compatibility
@@ -23,6 +29,7 @@ extract_file_from_zip() treats a missing file as an exception — logging an err
 1. <a name="option-1"></a> Return a sentinel from extract_file_from_zip for missing files — callers skip without cascading
 2. <a name="option-2"></a> Pre-filter DDP_CATEGORIES against the zip namelist before extraction
 3. <a name="option-3"></a> Keep current behavior but downgrade missing-file logs to DEBUG
+4. <a name="option-4"></a> Hybrid: validation caches archive inventory — ZipArchiveReader resolves members and signals found/not-found — platforms skip absent files
 
 ## <a name="criteria"></a> Decision Drivers
 DDPs vary across platform versions — languages — and download time ranges — many files in DDP_CATEGORIES will not be present in any given DDP
@@ -48,5 +55,8 @@ Researchers configuring which tables to extract need to know which files actuall
 * Bad, because error counts remain inflated
 
 
+## <a name="outcome"></a> Decision Outcome
+We decided for [Option 4](#option-4) because: Validation already walks the zip namelist — caching it on ValidateInput avoids redundant zip opens (25+ per Facebook extraction). ZipArchiveReader in helpers/ provides json()/csv()/raw() methods with found/not-found result types so platforms can cleanly skip absent files with 0 false errors. Deterministic path-boundary-aware resolution replaces the fragile first-regex-suffix-match behavior that caused wrong-file extractions. Options 1-2 were partial: Option 1 (sentinel) still cascades through read_json_from_bytes. Option 2 (pre-filter) puts file-existence checks in the wrong layer. Option 3 (downgrade logs) was rejected — hiding errors is not fixing them. The hybrid approach keeps responsibilities clean: validation discovers — helper resolves — platform parses.
+
 ## <a name="comments"></a> Comments
-<a name="comment-1"></a>1. (2026-03-20 15:29:51) Danielle McCool: Evidence from ddt11.log (2026-03-20 testing on Eyra mono): Facebook 755MB DDP produced 23 tables and 20159 rows but also 31K lines of Pyodide stderr from the error cascade. Error counts: JSONDecodeError×10 KeyError×3 TimestampParseError×559. The 559 timestamp errors are from epoch_to_iso receiving empty strings — these originate from rows extracted from files that DO exist but have empty timestamp fields. The JSONDecodeError×10 and KeyError×3 are from the missing-file cascade: extract_file_from_zip returns empty BytesIO → read_json_from_bytes tries utf8 then utf-8-sig (2 errors) → platform catches empty result (1 error). Instagram 1.2MB DDP: only 1 table extracted out of 9 possible with 28 errors (TimestampParseError×7 JSONDecodeError×14 KeyError×6 TypeError×1). The cascade pattern is in extraction_helpers.py:extract_file_from_zip (returns empty BytesIO on FileNotFoundInZipError) → _read_json (tries multiple encodings on empty bytes) → platform extraction function (catches KeyError on empty dict). Each platform defines DDP_CATEGORIES with known_files that represent ALL possible files across ALL versions and languages of a platform export. A real DDP will only contain a subset. The pre-filter approach (Option 2) would let FlowBuilder check which DDP_CATEGORIES files actually exist in the zip before calling extract_data — platforms would only attempt extraction on files known to be present.
+<a name="comment-3"></a>3. (2026-03-21 15:15:11) Danielle McCool: Implementation spec: docs/superpowers/specs/2026-03-21-archive-member-caching-design.md. Key components: ValidateInput.archive_members (repr=False for PII safety) — ZipArchiveReader with resolve_member() using path-boundary-aware matching — JsonExtractionResult/CsvExtractionResult/RawExtractionResult with found flag and safe defaults. See python-architecture/AD0001 for layered architecture (reader lives in helpers/) and python-architecture/AD0011 for PII logging boundary (archive_members is internal-only).

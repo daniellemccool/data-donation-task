@@ -33,10 +33,10 @@ class ValidateInput:
 `extract_file_from_zip()` replaces "first regex suffix match in zip order" with an explicit resolution rule:
 
 1. **Exact path match** — if the requested name exactly matches a member path, use it.
-2. **Suffix match** — otherwise, find all members whose path ends with the requested name.
-3. **0 suffix matches** → not found.
-4. **1 suffix match** → use it.
-5. **Multiple suffix matches** → ambiguous. Log a warning, count an error. Do not silently pick one.
+2. **Path-boundary suffix match** — otherwise, find all members where `member == filename or member.endswith("/" + filename)`. This is path-boundary-aware: `following.json` matches `data/following.json` but NOT `foo_following.json`.
+3. **0 matches** → not found.
+4. **1 match** → use it.
+5. **Multiple matches** → ambiguous. Return None, log a warning, increment `errors["AmbiguousMemberMatch"]`. Operationally treated as not-found — the extraction summary is the only place the data loss from ambiguity is visible. This is acceptable because ambiguity means the request is underspecified and the platform code should use a more specific path.
 
 This makes ambiguity visible instead of silently extracting the wrong file.
 
@@ -84,7 +84,11 @@ class ZipArchiveReader:
 
         Used for paginated exports (post_comments_1.json, _2.json, etc.)
         and multi-file patterns. Returns a list of results for each
-        matching member. Empty list if no matches.
+        matching member, sorted lexicographically by member path.
+        Empty list if no matches.
+
+        Note: lexicographic sort means _10 sorts before _2. Callers
+        that need numeric page order should sort by extracted page number.
         """
         ...
 
@@ -228,9 +232,11 @@ And `extraction()` receives validation to build the reader.
 - `port/script.py` — unchanged
 - `port/api/` — unchanged
 
-## Backward compatibility
+## Backward compatibility and rollout scope
 
-`extract_file_from_zip()` retains its current signature and behavior when `archive_members` is not provided. The new `ZipArchiveReader` is additive — old code continues to work. Migration to the reader is per-platform, not all-or-nothing.
+`extract_file_from_zip()` retains its current signature and behavior when called without a reader. The new `ZipArchiveReader` is additive — old code continues to work.
+
+**The cascade elimination guarantees (0 errors for missing files, deterministic resolution) apply only to platforms migrated to the reader.** Unmigrated platforms that still call `extract_file_from_zip()` directly will retain the old cascade and first-match behavior until migrated. The implementation plan should migrate all platforms in this branch — incremental migration refers to the ability to merge partial progress, not a long-term two-path state.
 
 ## Security
 
