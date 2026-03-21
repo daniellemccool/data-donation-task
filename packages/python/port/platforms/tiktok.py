@@ -20,6 +20,7 @@ from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.port_helpers as ph
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -47,13 +48,12 @@ DDP_CATEGORIES = [
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def _load_user_data(tiktok_zip: str, errors: Counter) -> dict:
+def _load_user_data(reader: ZipArchiveReader) -> dict:
     """Load the TikTok export root JSON from the DDP zip."""
     for filename in ("user_data_tiktok.json", "user_data.json"):
-        b = eh.extract_file_from_zip(tiktok_zip, filename, errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-        if isinstance(d, dict) and d:
-            return d
+        result = reader.json(filename)
+        if result.found and isinstance(result.data, dict) and result.data:
+            return result.data
     return {}
 
 
@@ -401,9 +401,10 @@ def comments_to_df(data: dict, errors: Counter) -> pd.DataFrame:
 # Extraction
 # ---------------------------------------------------------------------------
 
-def extraction(tiktok_zip: str) -> ExtractionResult:
+def extraction(tiktok_zip: str, validation) -> ExtractionResult:
     errors = Counter()
-    data = _load_user_data(tiktok_zip, errors)
+    reader = ZipArchiveReader(tiktok_zip, validation.archive_members, errors)
+    data = _load_user_data(reader)
 
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
@@ -625,7 +626,7 @@ class TikTokFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
 
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):

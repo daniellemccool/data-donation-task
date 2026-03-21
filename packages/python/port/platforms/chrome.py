@@ -17,6 +17,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -92,14 +93,14 @@ class _BookmarkParser(HTMLParser):
             self._current_href = None
 
 
-def browser_history_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
+def browser_history_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """Extract browser history from History.json, BrowserHistory.json, or Geschiedenis.json (NL)."""
 
     d: dict | list = {}
     for filename in ("Geschiedenis.json", "BrowserHistory.json", "History.json"):
-        b = eh.extract_file_from_zip(chrome_zip, filename, errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-        if d:
+        result = reader.json(filename)
+        if result.found:
+            d = result.data
             break
 
     out = pd.DataFrame()
@@ -124,14 +125,16 @@ def browser_history_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def bookmarks_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
+def bookmarks_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """Extract bookmarks from Bookmarks.html."""
 
-    b = eh.extract_file_from_zip(chrome_zip, "Bookmarks.html", errors=errors)
+    result = reader.raw("Bookmarks.html")
+    if not result.found:
+        return pd.DataFrame()
     out = pd.DataFrame()
 
     try:
-        html_content = b.read().decode("utf-8", errors="replace")
+        html_content = result.data.read().decode("utf-8", errors="replace")
         parser = _BookmarkParser()
         parser.feed(html_content)
         out = pd.DataFrame(parser.links, columns=["Bookmark", "URL"])
@@ -142,14 +145,14 @@ def bookmarks_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def omnibox_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
+def omnibox_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """Extract omnibox (address bar) history from Omnibox.json or History.json."""
 
     d: dict | list = {}
     for filename in ("Omnibox.json", "History.json"):
-        b = eh.extract_file_from_zip(chrome_zip, filename, errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-        if d:
+        result = reader.json(filename)
+        if result.found:
+            d = result.data
             break
 
     out = pd.DataFrame()
@@ -173,12 +176,13 @@ def omnibox_to_df(chrome_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def extraction(chrome_zip: str) -> ExtractionResult:
+def extraction(chrome_zip: str, validation) -> ExtractionResult:
     errors = Counter()
+    reader = ZipArchiveReader(chrome_zip, validation.archive_members, errors)
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="chrome_browser_history",
-            data_frame=browser_history_to_df(chrome_zip, errors),
+            data_frame=browser_history_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Chrome browser history",
                 "nl": "Chrome browsergeschiedenis",
@@ -204,7 +208,7 @@ def extraction(chrome_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="chrome_bookmarks",
-            data_frame=bookmarks_to_df(chrome_zip, errors),
+            data_frame=bookmarks_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Chrome bookmarks",
                 "nl": "Chrome bladwijzers",
@@ -220,7 +224,7 @@ def extraction(chrome_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="chrome_omnibox",
-            data_frame=omnibox_to_df(chrome_zip, errors),
+            data_frame=omnibox_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Chrome address bar history",
                 "nl": "Chrome adresbalk geschiedenis",
@@ -251,7 +255,7 @@ class ChromeFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
 
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):

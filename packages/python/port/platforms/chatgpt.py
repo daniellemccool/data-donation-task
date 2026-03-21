@@ -16,6 +16,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -42,9 +43,11 @@ DDP_CATEGORIES = [
 ]
 
 
-def conversations_to_df(chatgpt_zip: str, errors: Counter)  -> pd.DataFrame:
-    b = eh.extract_file_from_zip(chatgpt_zip, "conversations.json", errors=errors)
-    conversations = eh.read_json_from_bytes(b, errors=errors)
+def conversations_to_df(reader: ZipArchiveReader, errors: Counter)  -> pd.DataFrame:
+    result = reader.json("conversations.json")
+    if not result.found:
+        return pd.DataFrame()
+    conversations = result.data
 
     datapoints = []
     out = pd.DataFrame()
@@ -82,15 +85,16 @@ def conversations_to_df(chatgpt_zip: str, errors: Counter)  -> pd.DataFrame:
 
 
 
-def extraction(chatgpt_zip: str) -> ExtractionResult:
+def extraction(chatgpt_zip: str, validation) -> ExtractionResult:
     """
     Add your table definitions below in the list
     """
     errors = Counter()
+    reader = ZipArchiveReader(chatgpt_zip, validation.archive_members, errors)
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="chatgpt_conversations",
-            data_frame=conversations_to_df(chatgpt_zip, errors),
+            data_frame=conversations_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your conversations with ChatGPT",
                 "nl": "Uw gesprekken met ChatGPT"
@@ -130,7 +134,7 @@ class ChatGPTFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
         
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):
