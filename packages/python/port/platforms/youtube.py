@@ -17,6 +17,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -54,18 +55,18 @@ DDP_CATEGORIES = [
 ]
 
 
-def watch_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
+def watch_history_to_df(reader: ZipArchiveReader, validation, errors: Counter) -> pd.DataFrame:
 
     if validation.current_ddp_category.language == Language.NL:
-        b = eh.extract_file_from_zip(zip, "kijkgeschiedenis.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-
+        result = reader.json("kijkgeschiedenis.json")
     elif validation.current_ddp_category.language == Language.EN:
-        b = eh.extract_file_from_zip(zip, "watch-history.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-
+        result = reader.json("watch-history.json")
     else:
-        d = {}
+        return pd.DataFrame()
+
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -87,18 +88,18 @@ def watch_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def search_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
+def search_history_to_df(reader: ZipArchiveReader, validation, errors: Counter) -> pd.DataFrame:
 
     if validation.current_ddp_category.language == Language.NL:
-        b = eh.extract_file_from_zip(zip, "zoekgeschiedenis.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-
+        result = reader.json("zoekgeschiedenis.json")
     elif validation.current_ddp_category.language == Language.EN:
-        b = eh.extract_file_from_zip(zip, "search-history.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-
+        result = reader.json("search-history.json")
     else:
-        d = {}
+        return pd.DataFrame()
+
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -121,7 +122,7 @@ def search_history_to_df(zip: str, validation, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def subscriptions_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFrame:
+def subscriptions_to_df(reader: ZipArchiveReader, validation, errors: Counter) -> pd.DataFrame:
     """
     Parses 'subscriptions.csv' or 'abonnementen.csv' from a YouTube DDP.
     Normalises column names to English regardless of export language.
@@ -129,14 +130,15 @@ def subscriptions_to_df(youtube_zip: str, validation, errors: Counter) -> pd.Dat
 
     if validation.current_ddp_category.language == Language.NL:
         file_name = "abonnementen.csv"
-
     elif validation.current_ddp_category.language == Language.EN:
         file_name = "subscriptions.csv"
     else:
-        file_name = ""
+        return pd.DataFrame()
 
-    b = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv(file_name)
+    if not result.found:
+        return pd.DataFrame()
+    df = result.data
 
     if not df.empty:
         df.columns = ["Channel Id", "Channel URL", "Channel Name"]  # pyright: ignore
@@ -152,14 +154,16 @@ def _parse_comment_text(raw: str) -> str:
         return raw
 
 
-def comments_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFrame:
+def comments_to_df(reader: ZipArchiveReader, validation, errors: Counter) -> pd.DataFrame:
     if validation.current_ddp_category.language == Language.NL:
         file_name = "reacties.csv"
     else:
         file_name = "comments.csv"
 
-    b = eh.extract_file_from_zip(youtube_zip, file_name, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv(file_name)
+    if not result.found:
+        return pd.DataFrame()
+    df = result.data
 
     if not df.empty:
         # Normalise NL column names to English
@@ -182,10 +186,11 @@ def comments_to_df(youtube_zip: str, validation, errors: Counter) -> pd.DataFram
 
 def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
     errors = Counter()
+    reader = ZipArchiveReader(zip, validation.archive_members, errors)
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_watch_history",
-            data_frame=watch_history_to_df(zip, validation, errors),
+            data_frame=watch_history_to_df(reader, validation, errors),
             title=props.Translatable({
                 "en": "Your watch history",
                 "nl": "Je kijkgeschiedenis",
@@ -243,7 +248,7 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_search_history",
-            data_frame=search_history_to_df(zip, validation, errors),
+            data_frame=search_history_to_df(reader, validation, errors),
             title=props.Translatable({
                 "en": "Your search and watch history",
                 "nl": "Je zoek- en kijkgeschiedenis",
@@ -272,7 +277,7 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_subscriptions",
-            data_frame=subscriptions_to_df(zip, validation, errors),
+            data_frame=subscriptions_to_df(reader, validation, errors),
             title=props.Translatable({
                 "en": "Your subscriptions",
                 "nl": "Je abonnementen",
@@ -289,7 +294,7 @@ def extraction(zip: str, validation: ValidateInput) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="youtube_comments",
-            data_frame=comments_to_df(zip, validation, errors),
+            data_frame=comments_to_df(reader, validation, errors),
             title=props.Translatable({
                 "en": "Your comments",
                 "nl": "Je reacties",
