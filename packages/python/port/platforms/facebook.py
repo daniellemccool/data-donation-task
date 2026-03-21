@@ -17,6 +17,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -39,10 +40,12 @@ DDP_CATEGORIES = [
 ]
 
 
-def who_youve_followed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def who_youve_followed_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "who_you_ve_followed.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("who_you_ve_followed.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -64,10 +67,12 @@ def who_youve_followed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame
     return out
 
 
-def news_your_locations_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def news_your_locations_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "facebook_news/your_locations.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("facebook_news/your_locations.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -87,10 +92,12 @@ def news_your_locations_to_df(facebook_zip: str, errors: Counter) -> pd.DataFram
     return out
 
 
-def notifications_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def notifications_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "notifications/notifications.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("notifications/notifications.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -115,10 +122,12 @@ def notifications_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def content_sharing_you_have_created_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def content_sharing_you_have_created_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "content_sharing_links_you_have_created.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("content_sharing_links_you_have_created.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -140,10 +149,12 @@ def content_sharing_you_have_created_to_df(facebook_zip: str, errors: Counter) -
     return out
 
 
-def facebook_reels_usage_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def facebook_reels_usage_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "facebook_reels_usage_information.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("facebook_reels_usage_information.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -167,10 +178,12 @@ def facebook_reels_usage_to_df(facebook_zip: str, errors: Counter) -> pd.DataFra
     return out
 
 
-def last_28_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def last_28_days_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_facebook_watch_activity_in_the_last_28_days.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_facebook_watch_activity_in_the_last_28_days.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -190,10 +203,12 @@ def last_28_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def your_search_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def your_search_history_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_search_history.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_search_history.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -217,10 +232,12 @@ def your_search_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFram
     return out
 
 
-def your_friends_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def your_friends_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_friends.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_friends.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -238,10 +255,12 @@ def your_friends_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def ads_interests_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def ads_interests_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "ads_interests.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("ads_interests.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -261,9 +280,11 @@ def ads_interests_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def recently_viewed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "recently_viewed.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def recently_viewed_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("recently_viewed.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -301,9 +322,11 @@ def recently_viewed_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def recently_visited_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "recently_visited.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def recently_visited_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("recently_visited.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -329,9 +352,11 @@ def recently_visited_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def profile_update_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "profile_update_history.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def profile_update_history_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("profile_update_history.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -352,10 +377,12 @@ def profile_update_history_to_df(facebook_zip: str, errors: Counter) -> pd.DataF
     return out
 
 
-def your_event_responses_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def your_event_responses_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_event_responses.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_event_responses.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -377,10 +404,12 @@ def your_event_responses_to_df(facebook_zip: str, errors: Counter) -> pd.DataFra
     return out
 
 
-def group_posts_and_comments_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def group_posts_and_comments_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "group_posts_and_comments.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("group_posts_and_comments.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -407,10 +436,12 @@ def group_posts_and_comments_to_df(facebook_zip: str, errors: Counter) -> pd.Dat
 
 
 
-def your_answers_to_membership_questions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def your_answers_to_membership_questions_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_answers_to_membership_questions.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_answers_to_membership_questions.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -431,10 +462,12 @@ def your_answers_to_membership_questions_to_df(facebook_zip: str, errors: Counte
     return out
 
 
-def your_comments_in_groups_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def your_comments_in_groups_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
 
-    b = eh.extract_file_from_zip(facebook_zip, "your_comments_in_groups.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("your_comments_in_groups.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -460,9 +493,11 @@ def your_comments_in_groups_to_df(facebook_zip: str, errors: Counter) -> pd.Data
     return out
 
 
-def your_group_membership_activity_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_group_membership_activity.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def your_group_membership_activity_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("your_group_membership_activity.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -488,9 +523,11 @@ def your_group_membership_activity_to_df(facebook_zip: str, errors: Counter) -> 
 
 
 
-def pages_and_profiles_you_follow_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "pages_and_profiles_you_follow.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def pages_and_profiles_you_follow_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("pages_and_profiles_you_follow.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -512,9 +549,11 @@ def pages_and_profiles_you_follow_to_df(facebook_zip: str, errors: Counter) -> p
     return out
 
 
-def pages_youve_liked_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "pages_you_ve_liked.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def pages_youve_liked_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("pages_you_ve_liked.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -537,9 +576,11 @@ def pages_youve_liked_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def your_saved_items_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_saved_items.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def your_saved_items_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("your_saved_items.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -562,9 +603,11 @@ def your_saved_items_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
 
 
 
-def comments_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "comments_and_reactions/comments.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def comments_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("comments_and_reactions/comments.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -589,24 +632,21 @@ def comments_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def likes_and_reactions_to_df(instagram_zip: str, errors: Counter) -> pd.DataFrame:
+def likes_and_reactions_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     likes_and_reactions_x
     """
 
     out = pd.DataFrame()
     datapoints = []
-    i = 1
 
-    while True:
-        b = eh.extract_file_from_zip(instagram_zip, f"likes_and_reactions_{i}.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
+    results = reader.json_all(r"(^|/)likes_and_reactions_\d+\.json$")
+    if not results:
+        return pd.DataFrame()
 
-        if not d:
-            break
-
-        try:
-            for item in d:
+    try:
+        for result in results:
+            for item in result.data:
                 denested_dict = eh.dict_denester(item)
 
                 datapoints.append((
@@ -615,12 +655,10 @@ def likes_and_reactions_to_df(instagram_zip: str, errors: Counter) -> pd.DataFra
                     eh.epoch_to_iso(eh.find_item(denested_dict, "timestamp"), errors=errors),
                 ))
 
-            i += 1
-
-        except Exception as e:
-            logger.error("Exception caught: %s", e)
-            errors[type(e).__name__] += 1
-            return pd.DataFrame()
+    except Exception as e:
+        logger.error("Exception caught: %s", e)
+        errors[type(e).__name__] += 1
+        return pd.DataFrame()
 
     out = pd.DataFrame(datapoints, columns=["Title", "Reaction", "Timestamp"]) #pyright: ignore
 
@@ -628,9 +666,11 @@ def likes_and_reactions_to_df(instagram_zip: str, errors: Counter) -> pd.DataFra
 
 
 
-def your_comment_active_days_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_comment_active_days.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def your_comment_active_days_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("your_comment_active_days.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -653,9 +693,11 @@ def your_comment_active_days_to_df(facebook_zip: str, errors: Counter) -> pd.Dat
 
 
 
-def your_pages_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_pages.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def your_pages_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("your_pages.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -678,9 +720,11 @@ def your_pages_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def story_reactions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "story_reactions.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def story_reactions_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("story_reactions.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -701,9 +745,11 @@ def story_reactions_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def your_posts_check_ins_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
-    b = eh.extract_file_from_zip(facebook_zip, "your_posts__check_ins__photos_and_videos_1.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+def your_posts_check_ins_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
+    result = reader.json("your_posts__check_ins__photos_and_videos_1.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -724,7 +770,7 @@ def your_posts_check_ins_to_df(facebook_zip: str, errors: Counter) -> pd.DataFra
     return out
 
 
-def likes_and_reactions_base_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def likes_and_reactions_base_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     Reads likes_and_reactions.json (no number suffix) or, if absent, the numbered
     variants likes_and_reactions_1.json, _2.json, ... . Each item is structured with
@@ -743,20 +789,14 @@ def likes_and_reactions_base_to_df(facebook_zip: str, errors: Counter) -> pd.Dat
             ))
 
     try:
-        b = eh.extract_file_from_zip(facebook_zip, "likes_and_reactions.json", errors=errors)
-        d = eh.read_json_from_bytes(b, errors=errors)
-        if d:
-            _parse_items(d)  # pyright: ignore
+        result = reader.json("likes_and_reactions.json")
+        if result.found:
+            _parse_items(result.data)  # pyright: ignore
         else:
             # Fall back to numbered files for DDPs that only export _1, _2, ...
-            i = 1
-            while True:
-                b = eh.extract_file_from_zip(facebook_zip, f"likes_and_reactions_{i}.json", errors=errors)
-                d = eh.read_json_from_bytes(b, errors=errors)
-                if not d:
-                    break
-                _parse_items(d)  # pyright: ignore
-                i += 1
+            results = reader.json_all(r"(^|/)likes_and_reactions_\d+\.json$")
+            for r in results:
+                _parse_items(r.data)  # pyright: ignore
 
     except Exception as e:
         logger.error("Exception caught: %s", e)
@@ -766,14 +806,16 @@ def likes_and_reactions_base_to_df(facebook_zip: str, errors: Counter) -> pd.Dat
     return out
 
 
-def controls_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
+def controls_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     Reads preferences/feed/controls.json.
     Top-level key "controls" is a list of groups (e.g. "Show more", "Show less"),
     each with an "entries" list.
     """
-    b = eh.extract_file_from_zip(facebook_zip, "preferences/feed/controls.json", errors=errors)
-    d = eh.read_json_from_bytes(b, errors=errors)
+    result = reader.json("preferences/feed/controls.json")
+    if not result.found:
+        return pd.DataFrame()
+    d = result.data
 
     out = pd.DataFrame()
     datapoints = []
@@ -799,12 +841,13 @@ def controls_to_df(facebook_zip: str, errors: Counter) -> pd.DataFrame:
     return out
 
 
-def extraction(facebook_zip: str) -> ExtractionResult:
+def extraction(facebook_zip: str, validation) -> ExtractionResult:
     errors = Counter()
+    reader = ZipArchiveReader(facebook_zip, validation.archive_members, errors)
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_who_youve_followed",
-            data_frame=who_youve_followed_to_df(facebook_zip, errors),
+            data_frame=who_youve_followed_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Who you follow",
                 "nl": "Wie je volgt",
@@ -820,7 +863,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_news_your_locations",
-            data_frame=news_your_locations_to_df(facebook_zip, errors),
+            data_frame=news_your_locations_to_df(reader, errors),
             title=props.Translatable({
                 "en": "The locations Facebook news is set to",
                 "nl": "De locaties waar Facebook Nieuws op is ingesteld",
@@ -835,7 +878,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_notifications",
-            data_frame=notifications_to_df(facebook_zip, errors),
+            data_frame=notifications_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Notifications Facebook sent you",
                 "nl": "Notificaties die Facebook je stuurde",
@@ -853,7 +896,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_reels_usage",
-            data_frame=facebook_reels_usage_to_df(facebook_zip, errors),
+            data_frame=facebook_reels_usage_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Interactions with Facebook Reels",
                 "nl": "Interacties met Facebook Reels",
@@ -869,7 +912,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_last_28",
-            data_frame=last_28_days_to_df(facebook_zip, errors),
+            data_frame=last_28_days_to_df(reader, errors),
             title=props.Translatable({
                 "en": "How many videos you watched in the last 28 days",
                 "nl": "Hoeveel video's je de afgelopen 28 dagen hebt bekeken",
@@ -884,7 +927,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_search_history",
-            data_frame=your_search_history_to_df(facebook_zip, errors),
+            data_frame=your_search_history_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your search history",
                 "nl": "Je zoekgeschiedenis",
@@ -911,7 +954,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_visited",
-            data_frame=recently_visited_to_df(facebook_zip, errors),
+            data_frame=recently_visited_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Profiles you visited recently",
                 "nl": "Profielen die je recentelijk hebt bezocht",
@@ -929,7 +972,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_recently_viewed",
-            data_frame=recently_viewed_to_df(facebook_zip, errors),
+            data_frame=recently_viewed_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Facebook items you recently viewed",
                 "nl": "Facebook items die je recentelijk hebt bekeken",
@@ -947,7 +990,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_profile_update_history",
-            data_frame=profile_update_history_to_df(facebook_zip, errors),
+            data_frame=profile_update_history_to_df(reader, errors),
             title=props.Translatable({
                 "en": "History of your profile updates",
                 "nl": "Geschiedenis van je profielupdates",
@@ -963,7 +1006,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_likes_and_reactions_base",
-            data_frame=likes_and_reactions_base_to_df(facebook_zip, errors),
+            data_frame=likes_and_reactions_base_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Likes and reactions on Facebook",
                 "nl": "Likes en reacties op Facebook",
@@ -981,7 +1024,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_likes_and_reactions",
-            data_frame=likes_and_reactions_to_df(facebook_zip, errors),
+            data_frame=likes_and_reactions_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Posts you liked (with title)",
                 "nl": "Posts die je leuk vond (met titel)",
@@ -998,7 +1041,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_group_membership_activity",
-            data_frame=your_group_membership_activity_to_df(facebook_zip, errors),
+            data_frame=your_group_membership_activity_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Facebook groups you are a member of",
                 "nl": "Facebookgroepen waar je lid van bent",
@@ -1015,7 +1058,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_pages_and_profiles_you_follow",
-            data_frame=pages_and_profiles_you_follow_to_df(facebook_zip, errors),
+            data_frame=pages_and_profiles_you_follow_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Pages and profiles that you follow",
                 "nl": "Pagina's en profielen die je volgt",
@@ -1031,7 +1074,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_pages_youve_liked",
-            data_frame=pages_youve_liked_to_df(facebook_zip, errors),
+            data_frame=pages_youve_liked_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Pages that you have liked",
                 "nl": "Pagina's die je leuk vindt",
@@ -1048,7 +1091,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_posts_and_check_ins",
-            data_frame=your_posts_check_ins_to_df(facebook_zip, errors),
+            data_frame=your_posts_check_ins_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your posts and check-ins",
                 "nl": "Je posts en check-ins",
@@ -1064,7 +1107,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_story_reactions",
-            data_frame=story_reactions_to_df(facebook_zip, errors),
+            data_frame=story_reactions_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your story reactions",
                 "nl": "Je story-reacties",
@@ -1079,7 +1122,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_feed_controls",
-            data_frame=controls_to_df(facebook_zip, errors),
+            data_frame=controls_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Feed controls (show more / show less)",
                 "nl": "Feed-voorkeuren (meer zien / minder zien)",
@@ -1096,7 +1139,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_content_sharing_links_you_created",
-            data_frame=content_sharing_you_have_created_to_df(facebook_zip, errors),
+            data_frame=content_sharing_you_have_created_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Links you shared",
                 "nl": "Links die je hebt gedeeld",
@@ -1112,7 +1155,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_friends",
-            data_frame=your_friends_to_df(facebook_zip, errors),
+            data_frame=your_friends_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your friends on Facebook",
                 "nl": "Je vrienden op Facebook",
@@ -1127,7 +1170,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_ads_interests",
-            data_frame=ads_interests_to_df(facebook_zip, errors),
+            data_frame=ads_interests_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your ad interests",
                 "nl": "Je advertentie-interesses",
@@ -1142,7 +1185,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_event_responses",
-            data_frame=your_event_responses_to_df(facebook_zip, errors),
+            data_frame=your_event_responses_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your event responses",
                 "nl": "Je reacties op evenementen",
@@ -1158,7 +1201,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_group_posts_and_comments",
-            data_frame=group_posts_and_comments_to_df(facebook_zip, errors),
+            data_frame=group_posts_and_comments_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your posts and comments in groups",
                 "nl": "Je berichten en commentaren in groepen",
@@ -1176,7 +1219,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_answers_to_membership_questions",
-            data_frame=your_answers_to_membership_questions_to_df(facebook_zip, errors),
+            data_frame=your_answers_to_membership_questions_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your answers to group membership questions",
                 "nl": "Je antwoorden op vragen voor groepslidmaatschap",
@@ -1191,7 +1234,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comments_in_groups",
-            data_frame=your_comments_in_groups_to_df(facebook_zip, errors),
+            data_frame=your_comments_in_groups_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your comments in groups",
                 "nl": "Je commentaren in groepen",
@@ -1209,7 +1252,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_saved_items",
-            data_frame=your_saved_items_to_df(facebook_zip, errors),
+            data_frame=your_saved_items_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your saved items",
                 "nl": "Je opgeslagen items",
@@ -1225,7 +1268,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_comments",
-            data_frame=comments_to_df(facebook_zip, errors),
+            data_frame=comments_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your comments",
                 "nl": "Je commentaren",
@@ -1242,7 +1285,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_comment_active_days",
-            data_frame=your_comment_active_days_to_df(facebook_zip, errors),
+            data_frame=your_comment_active_days_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Days you actively commented",
                 "nl": "Dagen waarop je actief commentaren hebt geplaatst",
@@ -1258,7 +1301,7 @@ def extraction(facebook_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="facebook_your_pages",
-            data_frame=your_pages_to_df(facebook_zip, errors),
+            data_frame=your_pages_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Pages you manage",
                 "nl": "Pagina's die je beheert",
@@ -1288,7 +1331,7 @@ class FacebookFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
 
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):
