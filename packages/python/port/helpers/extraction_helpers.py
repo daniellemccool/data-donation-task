@@ -5,6 +5,7 @@ import math
 import re
 import logging
 from collections import Counter
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Callable
 from pathlib import Path
@@ -480,6 +481,8 @@ def read_json_from_bytes(json_bytes: io.BytesIO, errors: Counter | None = None) 
     out: dict[Any, Any] | list[Any] = {}
     try:
         b = json_bytes.read()
+        if not b:
+            return out  # empty bytes → empty result, no parse attempt
         out = _read_json(b, _json_reader_bytes, errors=errors)
     except Exception as e:
         logger.error("%s, could not convert json bytes", e)
@@ -559,3 +562,159 @@ def read_csv_from_bytes_to_df(json_bytes: io.BytesIO) -> pd.DataFrame:
         1    Bob   25
     """
     return pd.DataFrame(read_csv_from_bytes(json_bytes))
+
+
+# --- Result types for ZipArchiveReader ---
+
+@dataclass
+class JsonExtractionResult:
+    """Result of extracting and parsing a JSON file from a zip."""
+    found: bool
+    data: dict | list  # {} when not found
+    member_path: str | None = None
+
+
+@dataclass
+class CsvExtractionResult:
+    """Result of extracting and parsing a CSV file from a zip."""
+    found: bool
+    data: pd.DataFrame  # empty DataFrame when not found
+    member_path: str | None = None
+
+
+@dataclass
+class RawExtractionResult:
+    """Result of extracting raw bytes from a zip."""
+    found: bool
+    data: io.BytesIO  # empty BytesIO when not found
+    member_path: str | None = None
+
+
+class ZipArchiveReader:
+    """Reads files from a zip archive using cached member inventory.
+
+    Encapsulates the zip path, archive member list (from validation),
+    and error counter. Provides json()/csv()/raw() methods with
+    found/not-found signaling to eliminate cascading errors for
+    expected-missing files.
+
+    Usage:
+        reader = ZipArchiveReader(zip_path, validation.archive_members, errors)
+        result = reader.json("following.json")
+        if result.found:
+            data = result.data  # parsed dict/list
+    """
+
+    def __init__(self, zip_path: str, archive_members: list[str], errors: Counter):
+        self.zip_path = zip_path
+        self.archive_members = archive_members
+        self.errors = errors
+
+    def resolve_member(self, filename: str) -> str | None:
+        """Resolve a filename to an archive member path.
+
+        Resolution rule:
+        1. Exact path match → use it.
+        2. Path-boundary suffix match (member.endswith("/" + filename)) →
+           if exactly 1, use it.
+        3. 0 matches → return None.
+        4. Multiple matches → return None, log warning,
+           increment errors["AmbiguousMemberMatch"].
+        """
+        # 1. Exact match
+        if filename in self.archive_members:
+            return filename
+
+        # 2. Path-boundary suffix match
+        matches = [m for m in self.archive_members if m.endswith("/" + filename)]
+
+        if len(matches) == 1:
+            return matches[0]
+        elif len(matches) == 0:
+            return None
+        else:
+            logger.warning(
+                "Ambiguous member match: '%s' matched %d members in archive",
+                filename, len(matches),
+            )
+            self.errors["AmbiguousMemberMatch"] += 1
+            return None
+
+    def _read_member_bytes(self, member_path: str) -> io.BytesIO:
+        """Read a specific member from the zip by exact path."""
+        try:
+            with zipfile.ZipFile(self.zip_path, "r") as zf:
+                return io.BytesIO(zf.read(member_path))
+        except Exception as e:
+            logger.error("Error reading zip member: %s", type(e).__name__)
+            self.errors[type(e).__name__] += 1
+            return io.BytesIO()
+
+    def json(self, filename: str) -> JsonExtractionResult:
+        """Extract and parse a JSON file.
+
+        Returns JsonExtractionResult(found=False, data={}) if member
+        not in archive. Skips JSON parsing entirely when not found.
+        """
+        member = self.resolve_member(filename)
+        if member is None:
+            return JsonExtractionResult(found=False, data={})
+
+        b = self._read_member_bytes(member)
+        raw = b.read()
+        if not raw:
+            return JsonExtractionResult(found=True, data={}, member_path=member)
+
+        # Call _read_json directly (intentional — avoids BytesIO re-wrapping)
+        data = _read_json(raw, _json_reader_bytes, errors=self.errors)
+        return JsonExtractionResult(found=True, data=data, member_path=member)
+
+    def json_all(self, pattern: str) -> list[JsonExtractionResult]:
+        """Extract and parse all JSON files matching a regex pattern.
+
+        Returns results sorted lexicographically by member path.
+        Used for paginated exports (post_comments_1.json, _2.json, etc.).
+        """
+        matches = sorted(m for m in self.archive_members if re.search(pattern, m))
+        results = []
+        for member in matches:
+            b = self._read_member_bytes(member)
+            raw = b.read()
+            if not raw:
+                results.append(JsonExtractionResult(found=True, data={}, member_path=member))
+                continue
+            data = _read_json(raw, _json_reader_bytes, errors=self.errors)
+            results.append(JsonExtractionResult(found=True, data=data, member_path=member))
+        return results
+
+    def csv(self, filename: str) -> CsvExtractionResult:
+        """Extract and parse a CSV file.
+
+        Returns CsvExtractionResult(found=False, data=pd.DataFrame())
+        if member not in archive.
+        """
+        member = self.resolve_member(filename)
+        if member is None:
+            return CsvExtractionResult(found=False, data=pd.DataFrame())
+
+        b = self._read_member_bytes(member)
+        if not b.getvalue():
+            return CsvExtractionResult(found=True, data=pd.DataFrame(), member_path=member)
+
+        df = read_csv_from_bytes_to_df(b)
+        return CsvExtractionResult(found=True, data=df, member_path=member)
+
+    def raw(self, filename: str) -> RawExtractionResult:
+        """Extract raw bytes from a zip member.
+
+        Returns RawExtractionResult(found=False, data=io.BytesIO())
+        if member not in archive. Used for HTML (Chrome bookmarks),
+        text files (WhatsApp), and .js files (X — caller applies
+        bytesio_to_listdict for JS prefix stripping).
+        """
+        member = self.resolve_member(filename)
+        if member is None:
+            return RawExtractionResult(found=False, data=io.BytesIO())
+
+        b = self._read_member_bytes(member)
+        return RawExtractionResult(found=True, data=b, member_path=member)
