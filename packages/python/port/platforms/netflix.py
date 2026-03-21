@@ -18,6 +18,7 @@ from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 import port.helpers.port_helpers as ph
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -50,7 +51,7 @@ DDP_CATEGORIES = [
 ]
 
 
-def extract_users(netflix_zip: str, errors: Counter | None = None) -> list[str]:
+def extract_users(reader: ZipArchiveReader) -> list[str]:
     """Extract all profile names from Profiles.csv (first column).
 
     Falls back to ViewingActivity.csv if Profiles.csv is not available.
@@ -59,13 +60,13 @@ def extract_users(netflix_zip: str, errors: Counter | None = None) -> list[str]:
     out: list[str] = []
 
     # Prefer Profiles.csv — dedicated profile list, first column is always profile name
-    b = eh.extract_file_from_zip(netflix_zip, "Profiles.csv", errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("Profiles.csv")
+    df = result.data if result.found else pd.DataFrame()
 
     if df.empty:
         # Fallback: extract unique values from ViewingActivity.csv
-        b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv", errors=errors)
-        df = eh.read_csv_from_bytes_to_df(b)
+        result = reader.csv("ViewingActivity.csv")
+        df = result.data if result.found else pd.DataFrame()
 
     try:
         if not df.empty:
@@ -77,8 +78,7 @@ def extract_users(netflix_zip: str, errors: Counter | None = None) -> list[str]:
             out.sort()
     except Exception as e:
         logger.error("Cannot extract users: %s", e)
-        if errors is not None:
-            errors[type(e).__name__] += 1
+        reader.errors[type(e).__name__] += 1
     return out
 
 
@@ -102,19 +102,19 @@ def keep_user(df: pd.DataFrame, selected_user: str) -> pd.DataFrame:
     return df
 
 
-def netflix_to_df(netflix_zip: str, file_name: str, selected_user: str, errors: Counter) -> pd.DataFrame:
+def netflix_to_df(reader: ZipArchiveReader, file_name: str, selected_user: str) -> pd.DataFrame:
     """Load a Netflix CSV, filter to selected user."""
-    b = eh.extract_file_from_zip(netflix_zip, file_name, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
-    df = keep_user(df, selected_user)
-    return df
+    result = reader.csv(file_name)
+    if not result.found:
+        return pd.DataFrame()
+    return keep_user(result.data, selected_user)
 
 
-def ratings_to_df(netflix_zip: str, selected_user: str, errors: Counter) -> pd.DataFrame:
+def ratings_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
     """Extract ratings — title, thumbs value, timestamp."""
     columns_to_keep = ["Title Name", "Thumbs Value", "Event Utc Ts"]
 
-    df = netflix_to_df(netflix_zip, "Ratings.csv", selected_user, errors)
+    df = netflix_to_df(reader, "Ratings.csv", selected_user)
 
     out = pd.DataFrame()
     try:
@@ -136,11 +136,11 @@ def time_string_to_hours(time_str: str) -> float:
     return round(total_hours, 3)
 
 
-def viewing_activity_to_df(netflix_zip: str, selected_user: str, errors: Counter) -> pd.DataFrame:
+def viewing_activity_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
     """Extract viewing activity — start time, duration, title, type."""
     columns_to_keep = ["Start Time", "Duration", "Title", "Supplemental Video Type"]
 
-    df = netflix_to_df(netflix_zip, "ViewingActivity.csv", selected_user, errors)
+    df = netflix_to_df(reader, "ViewingActivity.csv", selected_user)
     remove_values = ["TEASER_TRAILER", "HOOK", "TRAILER", "CINEMAGRAPH"]
     out = pd.DataFrame()
 
@@ -158,9 +158,9 @@ def viewing_activity_to_df(netflix_zip: str, selected_user: str, errors: Counter
     return out
 
 
-def search_history_to_df(netflix_zip: str, selected_user: str, errors: Counter) -> pd.DataFrame:
+def search_history_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
     """Extract search history — query, displayed result, timestamp."""
-    df = netflix_to_df(netflix_zip, "SearchHistory.csv", selected_user, errors)
+    df = netflix_to_df(reader, "SearchHistory.csv", selected_user)
     out = pd.DataFrame()
 
     try:
@@ -176,12 +176,12 @@ def search_history_to_df(netflix_zip: str, selected_user: str, errors: Counter) 
     return out
 
 
-def extraction(netflix_zip: str, selected_user: str) -> ExtractionResult:
-    errors = Counter()
+def extraction(reader: ZipArchiveReader, selected_user: str) -> ExtractionResult:
+    errors = reader.errors
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_ratings",
-            data_frame=ratings_to_df(netflix_zip, selected_user, errors),
+            data_frame=ratings_to_df(reader, selected_user, errors),
             title=props.Translatable({
                 "en": "Your ratings on Netflix",
                 "nl": "Uw beoordelingen op Netflix",
@@ -209,7 +209,7 @@ def extraction(netflix_zip: str, selected_user: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_viewing_activity",
-            data_frame=viewing_activity_to_df(netflix_zip, selected_user, errors),
+            data_frame=viewing_activity_to_df(reader, selected_user, errors),
             title=props.Translatable({
                 "en": "What you watched",
                 "nl": "Wat u heeft gekeken",
@@ -260,7 +260,7 @@ def extraction(netflix_zip: str, selected_user: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_search_history",
-            data_frame=search_history_to_df(netflix_zip, selected_user, errors),
+            data_frame=search_history_to_df(reader, selected_user, errors),
             title=props.Translatable({
                 "en": "Your search history on Netflix",
                 "nl": "Uw zoekgeschiedenis op Netflix",
@@ -302,12 +302,14 @@ class NetflixFlow(FlowBuilder):
         return validate.validate_zip(DDP_CATEGORIES, file)
 
     def extract_data(self, file, validation):
+        errors = Counter()
+        reader = ZipArchiveReader(file, validation.archive_members, errors)
         selected_user = ""
-        users = extract_users(file)
+        users = extract_users(reader)
 
         if len(users) == 1:
             selected_user = users[0]
-            return extraction(file, selected_user)
+            return extraction(reader, selected_user)
         elif len(users) > 1:
             title = props.Translatable({
                 "en": "Select your Netflix profile name",
@@ -317,7 +319,7 @@ class NetflixFlow(FlowBuilder):
             radio_prompt = ph.generate_radio_prompt(title, empty_text, users)
             selection = yield ph.render_page(empty_text, radio_prompt)
             selected_user = selection.value
-            return extraction(file, selected_user)
+            return extraction(reader, selected_user)
 
 
 def process(session_id):

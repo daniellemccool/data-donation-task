@@ -19,6 +19,7 @@ import port.api.d3i_props as d3i_props
 from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
+from port.helpers.extraction_helpers import ZipArchiveReader
 from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
@@ -71,108 +72,102 @@ def strip_notes(b: io.BytesIO) -> io.BytesIO:
         pattern = re.compile(rb'^(.*?)\n\n', re.DOTALL)
         out = io.BytesIO(pattern.sub(b'', b.read()))
     except Exception:
-        out = b 
+        out = b
 
     return out
 
 
-def company_follows_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def company_follows_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Company Follows.csv'
     """
-    filename = "Company Follows.csv"
-
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
-
-    return df
+    result = reader.csv("Company Follows.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
 
-def member_follows_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def member_follows_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Member_Follows.csv'
     """
-    filename = "Member_Follows.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    b = strip_notes(b)
+    result = reader.raw("Member_Follows.csv")
+    if not result.found:
+        return pd.DataFrame()
+    b = strip_notes(result.data)
     df = eh.read_csv_from_bytes_to_df(b)
-
     return df
 
 
-def connections_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def connections_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Connections.csv'
     """
-    filename = "Connections.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    b = strip_notes(b)
+    result = reader.raw("Connections.csv")
+    if not result.found:
+        return pd.DataFrame()
+    b = strip_notes(result.data)
     df = eh.read_csv_from_bytes_to_df(b)
-
     return df
 
 
-def reactions_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def reactions_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Reactions.csv'
     """
-    filename = "Reactions.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("Reactions.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
-    return df
 
-
-def ads_clicked_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def ads_clicked_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Ads Clicked.csv'
     """
-    filename = "Ads Clicked.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("Ads Clicked.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
-    return df
 
-
-def search_queries_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def search_queries_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'SearchQueries.csv'
     """
-    filename = "SearchQueries.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("SearchQueries.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
-    return df
 
-
-def shares_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def shares_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Shares.csv'
     """
-    filename = "Shares.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("Shares.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
-    return df
 
-
-def comments_to_df(linkedin_zip: str, errors: Counter) -> pd.DataFrame:
+def comments_to_df(reader: ZipArchiveReader, errors: Counter) -> pd.DataFrame:
     """
     'Comments.csv'
     """
-    filename = "Comments.csv"
-    b = eh.extract_file_from_zip(linkedin_zip, filename, errors=errors)
-    df = eh.read_csv_from_bytes_to_df(b)
+    result = reader.csv("Comments.csv")
+    if not result.found:
+        return pd.DataFrame()
+    return result.data
 
-    return df
 
-
-def extraction(linkedin_zip: str) -> ExtractionResult:
+def extraction(linkedin_zip: str, validation: validate.ValidateInput) -> ExtractionResult:
     errors = Counter()
+    reader = ZipArchiveReader(linkedin_zip, validation.archive_members, errors)
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_ads_clicked",
-            data_frame=ads_clicked_to_df(linkedin_zip, errors),
+            data_frame=ads_clicked_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Ads you clicked on",
                 "nl": "Ads clicked"
@@ -188,7 +183,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_comments",
-            data_frame=comments_to_df(linkedin_zip, errors),
+            data_frame=comments_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your comments on LinkedIn",
                 "nl": "Comments"
@@ -215,7 +210,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linked_in_company_follows",
-            data_frame=company_follows_to_df(linkedin_zip, errors),
+            data_frame=company_follows_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Companies you follow",
                 "nl": "Company follows"
@@ -231,7 +226,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_shares",
-            data_frame=shares_to_df(linkedin_zip, errors),
+            data_frame=shares_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Posts you shared on LinkedIn",
                 "nl": "Shares"
@@ -251,7 +246,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_reactions",
-            data_frame=reactions_to_df(linkedin_zip, errors),
+            data_frame=reactions_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your reactions on LinkedIn",
                 "nl": "Reactions"
@@ -278,7 +273,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_connections",
-            data_frame=connections_to_df(linkedin_zip, errors),
+            data_frame=connections_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your LinkedIn connections",
                 "nl": "Je LinkedIn-connecties"
@@ -298,7 +293,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="linkedin_search_queries",
-            data_frame=search_queries_to_df(linkedin_zip, errors),
+            data_frame=search_queries_to_df(reader, errors),
             title=props.Translatable({
                 "en": "Your search queries on LinkedIn",
                 "nl": "Search queries"
@@ -324,7 +319,7 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
             ]
         )
     ]
-    
+
     return ExtractionResult(
         tables=[table for table in tables if not table.data_frame.empty],
         errors=errors,
@@ -334,12 +329,12 @@ def extraction(linkedin_zip: str) -> ExtractionResult:
 class LinkedInFlow(FlowBuilder):
     def __init__(self, session_id: str):
         super().__init__(session_id, "LinkedIn")
-        
+
     def validate_file(self, file):
         return validate.validate_zip(DDP_CATEGORIES, file)
-        
+
     def extract_data(self, file_value, validation):
-        return extraction(file_value)
+        return extraction(file_value, validation)
 
 
 def process(session_id):
