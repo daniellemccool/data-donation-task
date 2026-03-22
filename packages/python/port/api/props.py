@@ -1,19 +1,24 @@
 from dataclasses import dataclass
-from typing import Optional, TypedDict, Union, Any
+from typing import NotRequired, Optional, TypedDict, Union, Any
 
 import pandas as pd
 
 
 class Translations(TypedDict):
-    """Typed dict containing text that is  display in a speficic language
+    """Typed dict containing text displayed in a specific language.
+
+    en and nl are required. Additional languages are optional.
+    The feldspar Translator falls back gracefully for missing locales.
 
     Attributes:
         en: English string to display
         nl: Dutch string to display
+        es: Spanish string to display (optional)
     """
 
     en: str
     nl: str
+    es: NotRequired[str]
 
 
 @dataclass
@@ -90,6 +95,8 @@ class PropsUIPromptConfirm:
 class PropsUIPromptConsentFormTable:
     """Table to be shown to the participant prior to data_submission
 
+    It is truncated to a maximum number of rows to avoid overloading the UI.
+
     Attributes:
         id: a unique string to itentify the table after donation
         number: the number of table in the list of tables
@@ -123,9 +130,7 @@ class PropsUIPromptConsentFormTable:
         dict["description"] = self.description.toDict()
         dict["data_frame"] = self.data_frame.to_json()
         if self.headers:
-            dict["headers"] = {
-                key: value.toDict() for key, value in self.headers.items()
-            }
+            dict["headers"] = {key: value.toDict() for key, value in self.headers.items()}
         return dict
 
 
@@ -344,4 +349,17 @@ class PropsUIPageEnd:
     def toDict(self):
         dict = {}
         dict["__type__"] = "PropsUIPageEnd"
+        return dict
+
+
+@dataclass
+class PropsUIPageError:
+    """An error page to show when something goes wrong"""
+
+    message: str
+
+    def toDict(self):
+        dict = {}
+        dict["__type__"] = "PropsUIPageError"
+        dict["message"] = self.message
         return dict

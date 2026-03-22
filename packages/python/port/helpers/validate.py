@@ -14,6 +14,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+# Non-propagating logger for zip content enumeration (defense in depth).
+content_logger = logging.getLogger(f"{__name__}.content")
+content_logger.propagate = False
+content_logger.addHandler(logging.NullHandler())
+
 
 class Language(Enum):
     """
@@ -115,6 +120,10 @@ class ValidateInput:
     all_ddp_categories: list[DDPCategory]
     current_status_code: StatusCode | None = None
     current_ddp_category: DDPCategory | None = None
+
+    # Full zip member paths cached during validation. Internal only —
+    # must not appear in logs, host milestones, or donation payloads.
+    archive_members: list[str] = field(default_factory=list, repr=False)
 
     ddp_categories_lookup: dict[str, DDPCategory] = field(init=False)
     status_codes_lookup: dict[int, StatusCode] = field(init=False)
@@ -231,10 +240,12 @@ def validate_zip(ddp_categories: list[DDPCategory], path_to_zip: str) -> Validat
     try:
         paths = []
         with zipfile.ZipFile(path_to_zip, "r") as zf:
-            for f in zf.namelist():
+            all_members = zf.namelist()
+            for f in all_members:
                 p = Path(f)
-                logger.debug("Found: %s in zip", p.name)
+                content_logger.debug("Found: %s in zip", p.name)
                 paths.append(p.name)
+            validate.archive_members = all_members
 
         validate.infer_ddp_category(paths)
     except zipfile.BadZipFile:

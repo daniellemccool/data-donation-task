@@ -1,4 +1,5 @@
-from dataclasses import dataclass
+from collections import Counter
+from dataclasses import dataclass, field
 from typing import Optional
 
 import pandas as pd
@@ -50,6 +51,7 @@ class PropsUIPromptConsentFormTableViz:
     data_frame: pd.DataFrame
     description: Optional[props.Translatable] = None
     visualizations: Optional[list] = None
+    headers: Optional[dict[str, props.Translatable]] = None
     folded: Optional[bool] = False
     delete_option: Optional[bool] = True
 
@@ -73,6 +75,8 @@ class PropsUIPromptConsentFormTableViz:
         dict["data_frame"] = self.translate_data_frame()
         dict["description"] = self.description.toDict() if self.description else None
         dict["visualizations"] = self.visualizations if self.visualizations else None
+        if self.headers:
+            dict["headers"] = {key: value.toDict() for key, value in self.headers.items()}
         dict["folded"] = self.folded
         dict["delete_option"] = self.delete_option
         return dict
@@ -285,3 +289,15 @@ class PropsUIPromptRetry:
         dict["text"] = self.text.toDict()
         dict["ok"] = self.ok.toDict()
         return dict
+
+
+@dataclass
+class ExtractionResult:
+    """Result of a platform extraction: tables for consent + aggregated error counts.
+
+    The errors Counter contains type-name keys (e.g. Counter({"FileNotFoundInZipError": 3})).
+    These counts are safe to forward via the bridge logger. Raw exception messages
+    are never included — they stay in local __name__ logger output only.
+    """
+    tables: list[PropsUIPromptConsentFormTableViz]
+    errors: Counter = field(default_factory=Counter)
