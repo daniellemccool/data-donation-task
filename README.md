@@ -1,54 +1,95 @@
 # The data donation task
 
-The data donation task (a fork of [Feldspar](https://github.com/eyra/feldspar)) is front end that guides participants through the data donation steps, used in conjunction with Next.
+The data donation task (a fork of [Feldspar](https://github.com/eyra/feldspar)) is a front end that guides participants through the data donation steps, used in conjunction with Next.
 Next is a software as a service platform developed by [Eyra](https://eyra.co/) to facilitate scientific research.
 
-## Documentation
+This repository is based on the [d3i data donation task](https://github.com/d3i-infra/data-donation-task).
+Please see that repository and their [documentation](https://d3i-infra.github.io/data-donation-task/) for general information.
 
-Here you can find the [documentation](https://d3i-infra.github.io/data-donation-task/) of this repository and tutorial articles to get you going.
+## Installation and local testing
 
+### Pre-requisites
 
-## Installation of the data donation task
+- Fork or clone this repo
+- Install [Node.js](https://nodejs.org/en)
+- Install [pnpm](https://pnpm.io/)
+- Install [Python](https://www.python.org/)
+- Install [Poetry](https://python-poetry.org/)
 
-In order to start a local instance of the data donation task go through the following steps:
+### Setup
 
-0. Pre-requisites
+```sh
+pnpm install
+cd packages/python && poetry install
+```
 
-   - Fork or clone this repo
-   - Install [Node.js](https://nodejs.org/en)
-   - Install [pnpm](https://pnpm.io/installation)
-   - Install [Python](https://www.python.org/) (Version 3.11 or higher)
-   - Install [Poetry](https://python-poetry.org/)
+### Check environment
 
-1. Install dependencies:
+```sh
+pnpm doctor
+```
 
-   ```sh
-   pnpm install
-   ```
+### Start local dev server
 
-2. Run the project locally with hot reloading (builds Python package and starts the development server):
+```sh
+pnpm start
+```
 
-   ```sh
-   pnpm run start
-   ```
+Visit [`http://localhost:3000`](http://localhost:3000).
 
-3. You can now go to the browser: [`http://localhost:3000`](http://localhost:3000).
+## Commands
 
-If the installation went correctly you should be greeted with a mock data donation study. 
-For detailed installation instructions see the [documentation](https://d3i-infra.github.io/data-donation-task/).
+### Development
 
+| Command | Description |
+|---|---|
+| `pnpm start` | Start dev server with hot reload |
+| `pnpm run build` | Full production build (Python wheel + feldspar + data-collector) |
+| `pnpm doctor` | Check environment setup (13 checks) |
 
-## Contributing
+### Testing & Type Checking
 
-We want to make contributing to this project as easy and transparent as possible, whether it's:
+| Command | Description |
+|---|---|
+| `pnpm test` | Run Python tests |
+| `pnpm test:py` | Same as above |
+| `pnpm test:py -- tests/test_specific.py -q` | Run specific tests |
+| `pnpm typecheck:py` | Run Pyright type checker |
+| `pnpm verify:py` | Run both tests + type checks |
 
-- Reporting a bug
-- Discussing the current state of the code
-- Submitting a fix
-- Proposing new features
+### Releases
 
-If you have any questions, find any bugs, or have any ideas, read how to contribute [here](https://github.com/eyra/port/blob/master/CONTRIBUTING.md).
+| Command | Description |
+|---|---|
+| `pnpm release` | Build single all-platform release zip |
+| `pnpm release:platforms` | Build one zip per platform (for Eyra Next) |
 
+Per-platform releases are created in `releases/<timestamp>/` with one zip per platform, each filtered via `VITE_PLATFORM`.
+
+## Architecture
+
+See `docs/decisions/` for architectural decision records. Key structure:
+
+```
+packages/
+  python/         Python extraction scripts (per-platform)
+  feldspar/       Workflow UI framework (upstream Eyra)
+  data-collector/ Host app / dev server with custom UI components
+```
+
+### Platform extraction flow
+
+Each platform (Instagram, Facebook, YouTube, etc.) has a `FlowBuilder` subclass in `packages/python/port/platforms/` that handles:
+
+1. File prompt → participant uploads DDP zip
+2. Validation → DDP category detection via `DDP_CATEGORIES`
+3. Extraction → `ZipArchiveReader` reads files from cached archive inventory
+4. Consent → participant reviews extracted tables
+5. Donation → data sent to host platform
+
+### Supported platforms
+
+LinkedIn, Instagram, Facebook, YouTube, TikTok, Netflix, ChatGPT, WhatsApp, X, Chrome
 
 ## Citation
 
