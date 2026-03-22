@@ -1,21 +1,25 @@
 """
 Netflix
 
-This module provides an example flow of a Netflix data donation study
+This module provides an example flow of a Netflix data donation study.
 
 Assumptions:
-It handles DDPs in the english language with filetype CSV.
+It handles DDPs in the English language with filetype CSV.
+Netflix DDPs may have files nested under a numeric user ID prefix directory.
 """
 import logging
+from collections import Counter
 
 import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.extraction_helpers as eh
 import port.helpers.validate as validate
 import port.helpers.port_helpers as ph
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.extraction_helpers import ZipArchiveReader
+from port.helpers.flow_builder import FlowBuilder
 
 from port.helpers.validate import (
     DDPCategory,
@@ -30,228 +34,292 @@ DDP_CATEGORIES = [
         id="csv",
         ddp_filetype=DDPFiletype.CSV,
         language=Language.EN,
-        known_files=["MyList.csv", "ViewingActivity.csv", "SearchHistory.csv", "IndicatedPreferences.csv", "PlaybackRelatedEvents.csv", "InteractiveTitles.csv", "Ratings.csv", "GamePlaySession.txt", "IpAddressesLogin.csv", "IpAddressesAccountCreation.txt", "IpAddressesStreaming.csv", "Additional Information.pdf", "MessagesSentByNetflix.csv", "SocialMediaConnections.txt", "AccountDetails.csv", "ProductCancellationSurvey.txt", "CSContact.csv", "ChatTranscripts.csv", "Cover sheet.pdf", "Devices.csv", "ParentalControlsRestrictedTitles.txt", "AvatarHistory.csv", "Profiles.csv", "Clickstream.csv", "BillingHistory.csv"]
+        known_files=[
+            "MyList.csv", "ViewingActivity.csv", "SearchHistory.csv",
+            "IndicatedPreferences.csv", "PlaybackRelatedEvents.csv",
+            "InteractiveTitles.csv", "Ratings.csv", "GamePlaySession.csv",
+            "IpAddressesLogin.csv", "IpAddressesAccountCreation.txt",
+            "IpAddressesStreaming.csv", "Additional Information.pdf",
+            "MessagesSentByNetflix.csv", "AccountDetails.csv",
+            "ProductCancellationSurvey.txt", "CSContact.txt",
+            "ChatTranscripts.txt", "Cover Sheet.pdf", "Devices.csv",
+            "ParentalControlsRestrictedTitles.txt", "AvatarHistory.csv",
+            "Profiles.csv", "Clickstream.csv", "BillingHistory.csv",
+            "AccessAndDevices.csv", "ExtraMembers.txt",
+        ]
     )
 ]
 
-def extract_users(netflix_zip) -> list[str]:
+
+def extract_users(reader: ZipArchiveReader) -> list[str]:
+    """Extract all profile names from Profiles.csv (first column).
+
+    Falls back to ViewingActivity.csv if Profiles.csv is not available.
+    Uses column position rather than name to handle different DDP languages.
     """
-    Extracts all users from a netflix csv file 
-    This function expects all users to be present in the first column of a pd.DataFrame
-    """
+    out: list[str] = []
 
-    b = eh.extract_file_from_zip(netflix_zip, "ViewingActivity.csv")
-    df = eh.read_csv_from_bytes_to_df(b)
-    out = []
-    try:
-        out: list[str] = df[df.columns[0]].unique().tolist()
-        out.sort()
-    except Exception as e:
-        logger.error("Cannot extract users: %s", e)
+    # Prefer Profiles.csv — dedicated profile list, first column is always profile name
+    result = reader.csv("Profiles.csv")
+    df = result.data if result.found else pd.DataFrame()
 
-    return out
-    
+    if df.empty:
+        # Fallback: extract unique values from ViewingActivity.csv
+        result = reader.csv("ViewingActivity.csv")
+        df = result.data if result.found else pd.DataFrame()
 
-def keep_user(df: pd.DataFrame, selected_user: str) -> pd.DataFrame:
-    """
-    Keep only the rows where the first column of df
-    is equal to selected_user
-    """
-    try:
-        df =  df.loc[df.iloc[:, 0] == selected_user].reset_index(drop=True)
-    except Exception as e:  
-        logger.info(e)
-
-    return df
-
-    
-def netflix_to_df(netflix_zip: str, file_name: str, selected_user: str) -> pd.DataFrame:
-    """
-    netflix csv to df
-    returns empty df in case of error
-    """
-    ratings_bytes = eh.extract_file_from_zip(netflix_zip, file_name)
-    df = eh.read_csv_from_bytes_to_df(ratings_bytes)
-    df = keep_user(df, selected_user)
-
-    return df
-
-
-def ratings_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
-    """
-    Extract ratings from netflix zip to df
-    Only keep the selected user
-    """
-
-    columns_to_keep = ["Title Name", "Thumbs Value", "Event Utc Ts"]
-    columns_to_rename =  {
-        "Title Name": "Titel",
-        "Event Utc Ts": "Datum en tijd",
-        "Thumbs Value": "Aantal duimpjes omhoog"
-    }
-
-    df = netflix_to_df(netflix_zip, "Ratings.csv", selected_user)
-
-    # Extraction logic here
     try:
         if not df.empty:
-            df = df[columns_to_keep]
-            df = df.rename(columns=columns_to_rename) #pyright: ignore
+            # Use "Profile Name" if present, otherwise first column
+            if "Profile Name" in df.columns:
+                out = df["Profile Name"].unique().tolist()
+            else:
+                out = df[df.columns[0]].unique().tolist()
+            out.sort()
     except Exception as e:
-        logger.error("Data extraction error: %s", e)
-        
+        logger.error("Cannot extract users: %s", e)
+        reader.errors[type(e).__name__] += 1
+    return out
+
+
+def keep_user(df: pd.DataFrame, selected_user: str) -> pd.DataFrame:
+    """Keep only rows where the profile name column matches selected_user.
+
+    Finds the profile column by checking which column contains the selected_user value,
+    preferring "Profile Name" if it exists.
+    """
+    try:
+        if "Profile Name" in df.columns:
+            df = df.loc[df["Profile Name"] == selected_user].reset_index(drop=True)
+        else:
+            # Find the column containing the selected user
+            for col in df.columns:
+                if selected_user in df[col].values:
+                    df = df.loc[df[col] == selected_user].reset_index(drop=True)
+                    break
+    except Exception as e:
+        logger.info(e)
     return df
 
 
+def netflix_to_df(reader: ZipArchiveReader, file_name: str, selected_user: str) -> pd.DataFrame:
+    """Load a Netflix CSV, filter to selected user."""
+    result = reader.csv(file_name)
+    if not result.found:
+        return pd.DataFrame()
+    return keep_user(result.data, selected_user)
 
-def time_string_to_hours(time_str):
+
+def ratings_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
+    """Extract ratings — title, thumbs value, timestamp."""
+    columns_to_keep = ["Title Name", "Thumbs Value", "Event Utc Ts"]
+
+    df = netflix_to_df(reader, "Ratings.csv", selected_user)
+
+    out = pd.DataFrame()
     try:
-        # Split the time string into hours, minutes, and seconds
+        if not df.empty:
+            out = pd.DataFrame(df[columns_to_keep])
+    except Exception as e:
+        logger.error("Data extraction error: %s", e)
+        errors[type(e).__name__] += 1
+
+    return out
+
+
+def time_string_to_hours(time_str: str) -> float:
+    try:
         hours, minutes, seconds = map(int, time_str.split(':'))
-
-        # Convert each component to hours
-        hours_in_seconds = hours * 3600
-        minutes_in_seconds = minutes * 60
-
-        # Sum up the converted values
-        total_hours = (hours_in_seconds + minutes_in_seconds + seconds) / 3600
-    except:
-        return 0
-
+        total_hours = (hours * 3600 + minutes * 60 + seconds) / 3600
+    except Exception:
+        return 0.0
     return round(total_hours, 3)
 
 
-def viewing_activity_to_df(netflix_zip: str, selected_user: str)  -> pd.DataFrame:
-    """
-    Extract ViewingActivity from netflix zip to df
-    Only keep the selected user
-    """
+def viewing_activity_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
+    """Extract viewing activity — start time, duration, title, type."""
+    columns_to_keep = ["Start Time", "Duration", "Title", "Supplemental Video Type"]
 
-    columns_to_keep = ["Start Time","Duration","Title","Supplemental Video Type"]
-    columns_to_rename =  {
-        "Start Time": "Start tijd",
-        "Title": "Titel",
-        "Supplemental Video Type": "Aanvullend informatie",
-        "Duration": "Aantal uur gekeken"
-    }
-
-    df = netflix_to_df(netflix_zip, "ViewingActivity.csv", selected_user)
+    df = netflix_to_df(reader, "ViewingActivity.csv", selected_user)
     remove_values = ["TEASER_TRAILER", "HOOK", "TRAILER", "CINEMAGRAPH"]
+    out = pd.DataFrame()
 
     try:
         if not df.empty:
-            df = df[columns_to_keep]
-            df = df[~df["Supplemental Video Type"].isin(remove_values)].reset_index(drop=True)
-            df = df.rename(columns=columns_to_rename)
-
-        df['Aantal uur gekeken'] = df['Aantal uur gekeken'].apply(time_string_to_hours)
-        df = df.sort_values(by='Start tijd', ascending=True).reset_index(drop=True)
+            out = pd.DataFrame(df[columns_to_keep])
+            mask = out["Supplemental Video Type"].isin(remove_values)
+            out = out[~mask].reset_index(drop=True)
+            out["Duration"] = out["Duration"].apply(time_string_to_hours)
+            out = out.sort_values(by="Start Time", ascending=True).reset_index(drop=True)
     except Exception as e:
         logger.error("Data extraction error: %s", e)
-        
-    return df
+        errors[type(e).__name__] += 1
+
+    return out
 
 
+def search_history_to_df(reader: ZipArchiveReader, selected_user: str, errors: Counter) -> pd.DataFrame:
+    """Extract search history — query, displayed result, timestamp."""
+    df = netflix_to_df(reader, "SearchHistory.csv", selected_user)
+    out = pd.DataFrame()
 
-def extraction(netflix_zip: str, selected_user: str) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+    try:
+        if not df.empty:
+            columns_to_keep = [c for c in ["Query Typed", "Displayed Name", "Utc Timestamp"] if c in df.columns]
+            out = pd.DataFrame(df[columns_to_keep])
+            if "Utc Timestamp" in out.columns:
+                out = out.sort_values(by="Utc Timestamp", ascending=False).reset_index(drop=True)
+    except Exception as e:
+        logger.error("Data extraction error: %s", e)
+        errors[type(e).__name__] += 1
+
+    return out
+
+
+def extraction(reader: ZipArchiveReader, selected_user: str) -> ExtractionResult:
+    errors = reader.errors
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_ratings",
-            data_frame=ratings_to_df(netflix_zip, selected_user),
+            data_frame=ratings_to_df(reader, selected_user, errors),
             title=props.Translatable({
                 "en": "Your ratings on Netflix",
-                "nl": "Uw beoordelingen op Netflix"
+                "nl": "Uw beoordelingen op Netflix",
             }),
             description=props.Translatable({
-                "en": "Click 'Show Table' to view these ratings per row.", 
-                "nl": "Klik op ‘Tabel tonen’ om deze beoordelingen per rij te bekijken."
+                "en": "Titles you have rated on Netflix.",
+                "nl": "Titels die u op Netflix heeft beoordeeld.",
             }),
+            headers={
+                "Title Name": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Thumbs Value": props.Translatable({"en": "Thumbs value", "nl": "Aantal duimpjes omhoog"}),
+                "Event Utc Ts": props.Translatable({"en": "Date", "nl": "Datum en tijd"}),
+            },
             visualizations=[
-                 {
+                {
                     "title": {
-                        "en": "Titles rated by thumbs value", 
-                        "nl": "Gekeken titles, grootte is gebasseerd op het aantal duimpjes omhoog"
+                        "en": "Titles rated by thumbs value",
+                        "nl": "Beoordeelde titels op basis van duimpjes",
                     },
                     "type": "wordcloud",
-                    "textColumn": "Titel",
-                    "valueColumn": "Aantal duimpjes omhoog",
+                    "textColumn": "Title Name",
+                    "valueColumn": "Thumbs Value",
                 },
-            ]
+            ],
         ),
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="netflix_viewing_activity",
-            data_frame=viewing_activity_to_df(netflix_zip, selected_user),
-            title= props.Translatable({
+            data_frame=viewing_activity_to_df(reader, selected_user, errors),
+            title=props.Translatable({
                 "en": "What you watched",
-                "nl": "Wanneer kijkt u Netflix"
+                "nl": "Wat u heeft gekeken",
             }),
             description=props.Translatable({
-                "en": "This table shows what titles you watched when and for how long.", 
-                "nl": "Klik op ‘Tabel tonen’ om voor elke keer dat u iets op Netflix heeft gekeken te zien welke serie of film dit was, wanneer u dit heeft gekeken, hoe lang u het heeft gekeken."
+                "en": "This table shows what titles you watched, when, and for how long.",
+                "nl": "Deze tabel toont welke titels u heeft gekeken, wanneer, en hoe lang.",
             }),
+            headers={
+                "Start Time": props.Translatable({"en": "Start time", "nl": "Starttijd"}),
+                "Duration": props.Translatable({"en": "Hours watched", "nl": "Aantal uur gekeken"}),
+                "Title": props.Translatable({"en": "Title", "nl": "Titel"}),
+                "Supplemental Video Type": props.Translatable({"en": "Type", "nl": "Aanvullende informatie"}),
+            },
             visualizations=[
                 {
                     "title": {
-                        "en": "Total hours watched per month of the year", 
-                        "nl": "Totaal aantal uren gekeken per maand van het jaar"
+                        "en": "Total hours watched per month",
+                        "nl": "Totaal aantal uren gekeken per maand",
                     },
                     "type": "area",
                     "group": {
-                        "column": "Start tijd",
+                        "column": "Start Time",
                         "dateFormat": "month",
-                        "label": "Month"
+                        "label": "Month",
                     },
                     "values": [{
-                        "column": "Aantal uur gekeken",
+                        "column": "Duration",
                         "aggregate": "sum",
-                    }]
+                    }],
                 },
                 {
                     "title": {
-                        "en": "Total hours watch by hour of the day",
-                        "nl": "Totaal aantal uur gekeken op uur van de dag"
+                        "en": "Total hours watched by hour of the day",
+                        "nl": "Totaal aantal uur gekeken per uur van de dag",
                     },
                     "type": "bar",
                     "group": {
-                        "column": "Start tijd",
-                        "dateFormat": "hour_cycle"
+                        "column": "Start Time",
+                        "dateFormat": "hour_cycle",
                     },
                     "values": [{
-                        "column": "Aantal uur gekeken",
+                        "column": "Duration",
                         "aggregate": "sum",
-                    }]
-                }
-            ]
+                    }],
+                },
+            ],
+        ),
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="netflix_search_history",
+            data_frame=search_history_to_df(reader, selected_user, errors),
+            title=props.Translatable({
+                "en": "Your search history on Netflix",
+                "nl": "Uw zoekgeschiedenis op Netflix",
+            }),
+            description=props.Translatable({
+                "en": "Searches you have performed on Netflix.",
+                "nl": "Zoekopdrachten die u op Netflix heeft uitgevoerd.",
+            }),
+            headers={
+                "Query Typed": props.Translatable({"en": "Search query", "nl": "Zoekterm"}),
+                "Displayed Name": props.Translatable({"en": "Result shown", "nl": "Weergegeven resultaat"}),
+                "Utc Timestamp": props.Translatable({"en": "Date", "nl": "Datum en tijd"}),
+            },
+            visualizations=[
+                {
+                    "title": {
+                        "en": "Most searched terms",
+                        "nl": "Meest gezochte termen",
+                    },
+                    "type": "wordcloud",
+                    "textColumn": "Query Typed",
+                    "tokenize": False,
+                },
+            ],
         ),
     ]
 
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class NetflixFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "Netflix")
-        
+
     def validate_file(self, file):
         return validate.validate_zip(DDP_CATEGORIES, file)
-        
+
     def extract_data(self, file, validation):
+        errors = Counter()
+        reader = ZipArchiveReader(file, validation.archive_members, errors)
         selected_user = ""
-        users = extract_users(file)
+        users = extract_users(reader)
 
         if len(users) == 1:
             selected_user = users[0]
-            return extraction(file, selected_user)
+            return extraction(reader, selected_user)
         elif len(users) > 1:
             title = props.Translatable({
                 "en": "Select your Netflix profile name",
-                "nl": "Kies jouw Netflix profielnaam"
+                "nl": "Kies jouw Netflix profielnaam",
             })
-            empty_text = props.Translatable({ "en": "", "nl": "" })
+            empty_text = props.Translatable({"en": "", "nl": ""})
             radio_prompt = ph.generate_radio_prompt(title, empty_text, users)
             selection = yield ph.render_page(empty_text, radio_prompt)
             selected_user = selection.value
-            return extraction(file, selected_user)
+            return extraction(reader, selected_user)
 
 
 def process(session_id):
