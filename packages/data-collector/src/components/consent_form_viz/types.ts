@@ -5,6 +5,7 @@ export interface PropsUIPromptConsentFormTableViz {
   description: Text
   data_frame: any
   visualizations: any
+  headers?: Record<string, Text>
   folded: boolean
   delete_option: boolean
 }
@@ -30,6 +31,7 @@ export interface TableContext {
   originalBody: PropsUITableBody
   deletedRows: string[][]
   visualizations?: any[]
+  headers?: Record<string, string>
   folded: boolean
   deleteOption: boolean
 }

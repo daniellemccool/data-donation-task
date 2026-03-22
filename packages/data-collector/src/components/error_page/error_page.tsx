@@ -11,14 +11,14 @@ type Props = PropsUIPageError & ReactFactoryContext
 
 export const ErrorPage = (props: Props): JSX.Element => {
 
-  const { stacktrace } = props
+  const { message } = props
   const { title, text } = prepareCopy(props)
 
   return (
     <div>
       <Title1 text={title} />
       <BodyLarge text={text} />
-      <BodyLarge text={stacktrace} />
+      <BodyLarge text={message} />
     </div>
   )
 }
