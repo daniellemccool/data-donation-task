@@ -1,59 +1,136 @@
 # Creating your own data donation task
 
+After you have forked or cloned and installed the repository you can start creating your own donation task.
 
-After you have forked or cloned and installed the repository you can start creating your own donation task. 
+The extraction code lives in `packages/python/port`. The key pieces are:
 
-You can create your own study by changing and/or adapting the code in the following directory `packages/python/port`
-This directory contains the following files:
+* `script.py` — orchestrator that sequences platforms and delegates to FlowBuilder
+* `platforms/` — one module per platform, each containing a FlowBuilder subclass
+* `helpers/flow_builder.py` — the shared donation flow (file prompt → validate → extract → consent → donate)
+* `helpers/validate.py` — DDP validation using `DDP_CATEGORIES`
+* `helpers/extraction_helpers.py` — `ZipArchiveReader` and data parsing utilities
 
-* `d3i_example_script.py`: Contains your donation task logic; which screen the participants will see and in what order
-* `api/commands.py`: Contains the render and the donate commands
+## How FlowBuilder works
 
-## `d3i_example_script.py`
+Each platform implements a **FlowBuilder subclass** with two methods:
 
-Lets look at the example script in [`d3i_example_script.py`](https://github.com/d3i-infra/data-donation-task/blob/master/packages/python/port/d3i_example_script.py). 
+* `validate_file(file)` — check whether the uploaded zip is a valid DDP for this platform
+* `extract_data(file_value, validation)` — extract tables from the zip and return an `ExtractionResult`
 
-`d3i_example_script.py` must contain a function called `process` this function determines the whole data donation task from start to finish (Which screens the participant will see and in what order, and what kind of data extraction will take place). 
+FlowBuilder handles everything else: prompting the participant for a file, retry on invalid uploads, safety checks, rendering consent tables, and submitting the donation.
 
-In this example process defines the following data donation task:
+Here is a minimal example (based on [LinkedIn](https://github.com/d3i-infra/data-donation-task/blob/master/packages/python/port/platforms/linkedin.py)):
 
-1. Ask the participant to submit a zip file
-2. Perform validation on the submitted zip file, if not valid return to step 1
-3. Extract the data from the submitted zip file
-4. Render the extract data on screen in a table
-5. Send the data to the data storage upon consent
+```python
+# platforms/my_platform.py
+from collections import Counter
+import pandas as pd
 
-Although these can vary per data donation task, they will be mostly similar.
+import port.api.props as props
+import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
+from port.helpers.extraction_helpers import ZipArchiveReader
+from port.helpers.flow_builder import FlowBuilder
+import port.helpers.validate as validate
+from port.helpers.validate import DDPCategory, DDPFiletype, Language
 
-The `d3i_example_script.py` is annotated, read it carefully and see whether you can follow the logic.
+DDP_CATEGORIES = [
+    DDPCategory(
+        id="json_en",
+        ddp_filetype=DDPFiletype.JSON,
+        language=Language.EN,
+        known_files=["data.json", "profile.json"]
+    )
+]
+
+def extraction(zip_path: str, validation) -> ExtractionResult:
+    errors = Counter()
+    reader = ZipArchiveReader(zip_path, validation.archive_members, errors)
+
+    result = reader.json("data.json")
+    if result.found:
+        df = pd.DataFrame(result.data)
+    else:
+        df = pd.DataFrame()
+
+    tables = [
+        d3i_props.PropsUIPromptConsentFormTableViz(
+            id="my_table",
+            data_frame=df,
+            title=props.Translatable({"en": "My Data", "nl": "Mijn gegevens"}),
+        )
+    ]
+    return ExtractionResult(tables=tables, errors=errors)
 
 
-## Start writing your own `d3i_example_script.py` using the api
+class MyPlatformFlow(FlowBuilder):
+    def __init__(self, session_id: str):
+        super().__init__(session_id, "MyPlatform")
 
-Now that you have seen a full example, you can start to try and create your own data donation task. With the elements from the example you can already build some pretty intricate data donation tasks.
-Start creating your own by `d3i_example_script.py` by adapting this example to your own needs, for example, instead of file names you could extract data you would actually like to extract yourself.
+    def validate_file(self, file):
+        return validate.validate_zip(DDP_CATEGORIES, file)
 
-If you want to see which up what UI elements are available to you checkout `api/props.py` or `api/d3i_props.py`.
+    def extract_data(self, file_value, validation):
+        return extraction(file_value, validation)
 
-## The usage of `yield` in `d3i_example_script.py`
 
-`yield` makes sure that whenever the code resumes after a page render, it starts where it left off.
-If you render a page you need to use yield instead of return, just like in the example.
+def process(session_id):
+    flow = MyPlatformFlow(session_id)
+    return flow.start_flow()
+```
+
+## Registering your platform in script.py
+
+`script.py` maintains a registry of platforms. Add your platform:
+
+```python
+PLATFORM_REGISTRY = [
+    ("MyPlatform", "port.platforms.my_platform", "MyPlatformFlow"),
+    # ... other platforms
+]
+```
+
+Platforms are imported lazily, so only the platform(s) needed for a given build are loaded.
+
+## DDP_CATEGORIES
+
+Each platform defines which DDP formats it supports. `validate.validate_zip()` checks the uploaded file against these categories by comparing the zip's file list against the `known_files` for each category.
+
+```python
+DDP_CATEGORIES = [
+    DDPCategory(
+        id="json_en",
+        ddp_filetype=DDPFiletype.JSON,
+        language=Language.EN,
+        known_files=["conversations.json", "user.json"]
+    ),
+    DDPCategory(
+        id="csv_en",
+        ddp_filetype=DDPFiletype.CSV,
+        language=Language.EN,
+        known_files=["data.csv", "profile.csv"]
+    ),
+]
+```
+
+If your participants use a DDP format not covered by the existing categories, add a new `DDPCategory` entry with the expected files.
+
+## The usage of `yield`
+
+`yield` makes sure that whenever the code resumes after a page render, it starts where it left off. FlowBuilder uses `yield` internally — your extraction code does not need to yield unless you want to show progress messages during extraction.
+
+The `script.py` orchestrator uses `yield from flow.start_flow()` to delegate the full flow to FlowBuilder.
 
 ## Install Python packages
 
-The data donation task runs in the browser of the participant, it is important to understand that when Python is running in your browser it is not using the Python version you have installed on your system.
-The data donation task is using [Pyodide](https://pyodide.org/en/stable/) this is Python compiled to web assembly that runs in the browser. 
-This means that packages you have available on your system install of Python, won't be available in the browser.
+The data donation task runs in the browser of the participant using [Pyodide](https://pyodide.org/en/stable/) — Python compiled to WebAssembly. Packages available on your system install of Python won't automatically be available in the browser.
 
-If you want to use external packages they should be available for Pyodide, you can check the list of available packages [here](https://pyodide.org/en/stable/usage/packages-in-pyodide.html).
-If you have found a package you want to use you can installed it by adding it to the array in the `loadPackages` function in `src/framework/processing/py_worker.js` as shown below:
+If you want to use external packages they should be available for Pyodide. You can check the list of available packages [here](https://pyodide.org/en/stable/usage/packages-in-pyodide.html).
+If you have found a package you want to use, add it to the `loadPackages` function in `packages/data-collector/public/py_worker.js`:
 
 ```javascript
-// src/framework/processing/py_worker.js
 function loadPackages() {
   console.log('[ProcessingWorker] loading packages')
-  // These packages are now installed and usable: micropip, numpy, pandas, and lxml
   return self.pyodide.loadPackage(['micropip', 'numpy', 'pandas', 'lxml'])
 }
 ```
@@ -62,37 +139,26 @@ You can now import the packages as you would normally do in Python.
 
 ## Try the donation task from the perspective of the participant
 
-If you want to try out the above example, follow the installation instructions and start the server with `pnpm run start`.
+Follow the installation instructions and start the server with `pnpm start`. Visit `http://localhost:3000` to see the donation flow.
 
-## Tips when writing your own `d3i_example_script.py`
+## Tips
 
-**Split the extraction logic from the data donation task logic**
-You can define your own modules where you create your data extraction, you can `import` those modules in `d3i_example_script.py`
+**Use ZipArchiveReader for file access.**
+`reader.json()`, `reader.csv()`, and `reader.raw()` return found/not-found results instead of raising exceptions. This avoids error cascades when DDP files are missing (which is expected — DDPs vary by platform version and language).
 
-**Develop in separate script**
-You are better off engineering your extraction logic in different scripts and put them in `d3i_example_script.py` whenever you are finished developing. Only do small tweaks in `d3i_example_script.py`
+**Use the browser console for debugging.**
+`print()` and `logging.getLogger()` output appears in the browser console. These logs stay local and are not sent to the host platform.
 
-**Use the console in your browser**
-In case of errors they will show up in the browser console. You can use `print` in the Python script and it will show up in the browser console.
+**Keep the diverse nature of DDPs in mind.**
+Check a variety of DDPs to make sure your extraction handles: different data formats (HTML, JSON, CSV), language settings (which affect file names and JSON keys), and different download options (which affect which files are present).
 
-**Keep the diverse nature of DDPs into account**
-At least check a couple of DDPs to make sure its reflective of the population you are interesed in. Thinks you can check are: data formats (html, json, plain text, csv, etc.), language settings (they somethines lead to json keys being in a different language or file names other than English).
+**Don't let your code crash.**
+Uncaught exceptions stop the donation task. Use try/except in extraction functions and count errors via `errors[type(e).__name__] += 1` rather than letting them propagate.
 
-**Keep your code efficient**
-If your code is not efficient the extraction will take longer, which can result in a bad experience for the participant. In practice I have found that in most cases it's not really an issue, and don't have to pay that much attention to efficiency of your code.
-Where efficiency really matters is when you have parse huge html files, beautifulsoup4 is a library that is commonly used to do this, this library is too slow however. As an alternative you can use lxml which is fast enough.
+**Data donation checklist.**
+Check out the [wiki article](https://github.com/d3i-infra/data-donation-task/wiki/Data-donation-checklist) for a comprehensive checklist.
 
-**Don't let your code crash**
-You cannot have your script crash, if your Python script crashes the task stops as well. This is not a good experience for your participant.
-For example in the code you do the following: `value_i_want_to_extract = extracted_data_in_a_dictionary["interesting key"]` if the key `"interesting key"` does not exists, because it does not occur in the data of the participant, the script crashes and the participant cannot continue the data donation task.
+## Limits
 
-**Data donation checklist**
-Creating a good data donation task can be hard due to the variety of DDPs you will encounted. 
-Check out the following [wiki article](https://github.com/d3i-infra/data-donation-task/wiki/Data-donation-checklist)
-
-## Limits of the data donation task
-
-Currently the data donation task has the following limitations:
-
-* The data donation task is a frontend, you need to package this together with Next to deploy it. If you want to use it with your own backend you have to make the data donation task compatible with it yourself. A tutorial on how to do this might be added in the future.
-* The data donation task is running in the browser of the participant that brings in limitations, such as constraints on the files participant can submit. The limits are around 4 GiB thats what Pyodide can handle. But less is better. So keep that in mind whenever you, for example, want to collect data from YouTube: your participants should exclude their own personal videos from their DDP (including these would result in a huge number of separate DDPs of around 4 GiB).
+* The data donation task is a frontend — you need Next (or a compatible host) to deploy it.
+* Pyodide can handle files up to around 4 GiB, but less is better. For platforms like YouTube, participants should exclude personal videos from their DDP.
