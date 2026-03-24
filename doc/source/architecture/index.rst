@@ -12,3 +12,4 @@ Architecture
    05-extraction
    06-logging
    07-error-handling
+   08-rendering

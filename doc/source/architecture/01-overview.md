@@ -52,17 +52,38 @@ thread, it cannot block the UI.
 
 **Key file:** `packages/data-collector/public/py_worker.js`
 
-### JS Framework
+### JS Framework (feldspar)
 
-Runs on the browser's main thread. Responsible for:
+The framework library. Runs on the browser's main thread. Responsible for:
 
 - Managing the worker lifecycle (`WorkerProcessingEngine`)
 - Routing commands from Python to the bridge or to the React UI (`CommandRouter`)
-- Rendering interactive pages (`ReactEngine`)
+- Rendering interactive pages (`ReactEngine`) via a pluggable factory system
 - Capturing and forwarding JavaScript-side log entries (`LogForwarder`, `WindowLogSource`)
 - Wiring all of the above together (`Assembly`)
+- Providing base UI components and default prompt factories
+
+feldspar is a library — it does not run on its own.
 
 **Key files:** `packages/feldspar/src/framework/`
+
+### Application layer (data-collector)
+
+The Vite app that gets built and served. This is the composition root that
+wires feldspar together with D3I-specific components:
+
+- Hosts `py_worker.js` (the worker entry point) and the Python wheel
+  (`port-0.0.0.tar.gz`) in its `public/` directory
+- Registers custom prompt factories for D3I UI components (consent form with
+  visualizations, multi-file input, questionnaire, error page, retry prompt)
+- Configures `ScriptHostComponent` with the worker URL, log level, and
+  standalone/production toggle
+- Manages the iframe lifecycle (app-loaded signal, resize observer)
+
+See [Rendering and the factory system](08-rendering.md) for how data-collector
+plugs into feldspar's rendering pipeline.
+
+**Key files:** `packages/data-collector/src/App.tsx`, `packages/data-collector/public/`
 
 ### The bridge
 

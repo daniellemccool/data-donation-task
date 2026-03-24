@@ -68,11 +68,18 @@ called for you at every standard milestone — you only need to add custom
 
 **Sources that feed into `LogForwarder`:**
 
-| Source | What it captures |
-|---|---|
-| `WindowLogSource` | `window.error` events, unhandled promise rejections |
-| `WorkerProcessingEngine.worker.onerror` | Pyodide worker crashes (distinct from Python exceptions) |
-| `WorkerProcessingEngine` internal | Worker lifecycle events at `debug` level |
+| Source | Scope | What it captures |
+|---|---|---|
+| `WindowLogSource` `error` listener | Main thread (`window`) | Synchronous JS errors on the main thread |
+| `WindowLogSource` `unhandledrejection` listener | Main thread (`window`) | Unhandled promise rejections on the main thread only — **not** in the worker |
+| `WorkerProcessingEngine.worker.onerror` | Main thread (listening on worker) | Synchronous worker errors that propagate to the main thread |
+| `WorkerProcessingEngine` internal | Main thread | Worker lifecycle events at `debug` level |
+
+**Scope gap:** Unhandled promise rejections inside the worker (e.g. an
+`unwrap()` failure in `py_worker.js`) are not captured by any of these
+sources. `WindowLogSource` listens on `window`, not the worker's global scope.
+These rejections are silently lost — visible only in the worker's DevTools
+console.
 
 **Route:**
 1. Error is captured by `WindowLogSource` or `WorkerProcessingEngine`
@@ -83,9 +90,18 @@ called for you at every standard milestone — you only need to add custom
 5. `LiveBridge.sendLogs()` formats each entry as a `CommandSystemLog`-shaped
    `postMessage` and posts it to the host
 
-**PII rule:** Path B carries context objects (memory usage, filename, line
-number) but no participant data. Raw Python tracebacks **never** reach Path B
-— that is handled by [error_flow](07-error-handling.md) instead.
+**PII rule:** `WindowLogSource` captures rich context (memory usage, filename,
+line number) into the `LogEntry`, and `LogForwarder` records a `timestamp`.
+`LiveBridge.sendLogs()` **drops both `context` and `timestamp`** — it only
+posts `level` and `message` to the host (plus a `json_string` duplicate for
+backwards compatibility). The full `LogEntry` exists in the JS runtime's
+`LogForwarder` buffer (visible in DevTools) but those extra fields never cross
+the bridge. Raw Python tracebacks also never reach Path B — that is handled by
+[error_flow](07-error-handling.md) instead.
+
+**Dead handler note:** `WorkerProcessingEngine.handleEvent()` has a case for
+`eventType: 'error'` (a custom worker message), but `py_worker.js` never posts
+this event type. The handler exists but is inert on this branch.
 
 ---
 

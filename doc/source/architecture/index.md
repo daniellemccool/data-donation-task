@@ -15,6 +15,7 @@ If you're new to the codebase, read these in order:
 5. [Extraction](05-extraction.md) — zip reading, validation, ExtractionResult
 6. [Logging](06-logging.md) — two paths to the host, PII rules
 7. [Error handling](07-error-handling.md) — ScriptWrapper, error_flow, the PII boundary
+8. [Rendering](08-rendering.md) — how commands become React components, the factory system, consent form round-trip
 
 ---
 
@@ -31,3 +32,8 @@ If you're new to the codebase, read these in order:
 | What happens when Python throws an exception? | [Error handling](07-error-handling.md) |
 | Where is the PII safety boundary? | [Error handling § PII safety](07-error-handling.md#pii-safety-boundary) |
 | What is the difference between LiveBridge and FakeBridge? | [Overview § The bridge](01-overview.md#the-bridge) |
+| How do Python commands turn into React UI? | [Rendering](08-rendering.md) |
+| What is the factory system? How do I add a custom component? | [Rendering § Prompt factories](08-rendering.md#prompt-factory-reference) |
+| What is data-collector vs feldspar? | [Rendering § The two packages](08-rendering.md#the-two-packages) |
+| Can the participant edit data before donating? | [Rendering § Consent form round-trip](08-rendering.md#the-consent-form-data-round-trip) |
+| How does the iframe communicate with Eyra mono? | [Rendering § Iframe lifecycle](08-rendering.md#iframe-lifecycle) |
