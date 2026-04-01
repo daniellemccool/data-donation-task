@@ -43,7 +43,8 @@ export type PayloadResolved =
   PayloadTrue |
   PayloadString |
   PayloadFile |
-  PayloadJSON
+  PayloadJSON |
+  PayloadResponse
 
 export interface PayloadVoid {
   __type__: 'PayloadVoid'
@@ -73,6 +74,15 @@ export function isPayloadJSON (arg: any): arg is PayloadJSON {
   return isInstanceOf<PayloadJSON>(arg, 'PayloadJSON', ['value'])
 }
 
+// Wraps a ResponseSystemDonate so Python can inspect the donation outcome.
+// Named PayloadResponse in eyra/feldspar PR #612 commit 94ed016 "Rename
+// PayloadResponseSystemDonate to PayloadResponse" (Feb 2 2026). Adopted by
+// what-if-horizon in commit 0020453 "wait for donation result (based on PR 612)".
+export interface PayloadResponse {
+  __type__: 'PayloadResponse'
+  value: import('./modules').ResponseSystemDonate
+}
+
 export type Command =
   CommandUI |
   CommandSystem
@@ -84,10 +94,11 @@ export function isCommand (arg: any): arg is Command {
 export type CommandSystem =
   CommandSystemDonate |
   CommandSystemEvent |
-  CommandSystemExit
+  CommandSystemExit |
+  CommandSystemLog
 
 export function isCommandSystem (arg: any): arg is CommandSystem {
-  return isCommandSystemDonate(arg) || isCommandSystemEvent(arg) || isCommandSystemExit(arg)
+  return isCommandSystemDonate(arg) || isCommandSystemEvent(arg) || isCommandSystemExit(arg) || isCommandSystemLog(arg)
 }
 
 export interface CommandSystemEvent {
@@ -112,6 +123,17 @@ export type CommandUI =
 
 export function isCommandUI (arg: any): arg is CommandUI {
   return isCommandUIRender(arg)
+}
+
+export interface CommandSystemLog {
+  __type__: 'CommandSystemLog'
+  level: string
+  message: string
+  /** @deprecated Temporary for backwards compatibility with mono host, will be removed once host updated */
+  json_string: string
+}
+export function isCommandSystemLog (arg: any): arg is CommandSystemLog {
+  return isInstanceOf<CommandSystemLog>(arg, 'CommandSystemLog', ['level', 'message', 'json_string'])
 }
 
 export interface CommandSystemDonate {
