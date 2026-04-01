@@ -111,10 +111,12 @@ export const Table = ({
   }, [table, page, pageSize])
 
   function renderHeaderCell (value: string, i: number): JSX.Element {
+    // Display translated header if available, fall back to raw column name
+    const displayName = table.headers?.[value] ?? value
     return (
       <th key={`header ${i}`}>
         <div className={`text-left ${cellClass}`}>
-          <div>{value}</div>
+          <div>{displayName}</div>
         </div>
       </th>
     )

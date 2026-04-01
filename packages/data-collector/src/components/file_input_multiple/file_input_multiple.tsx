@@ -73,7 +73,7 @@ export const FileInputMultiple = (props: Props): JSX.Element => {
                     <span className="truncate">{file.name}</span>
                     <button
                         onClick={() => removeFile(index)}
-                        className="flex-shrink-0"
+                        className="shrink-0"
                     >
                     <img src={CloseSvg} className={"w-8 h-8"} />
                     </button>

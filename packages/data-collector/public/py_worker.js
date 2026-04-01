@@ -13,7 +13,9 @@ onmessage = (event) => {
       break;
 
     case "firstRunCycle":
-      pyScript = self.pyodide.runPython(`port.start(${event.data.sessionId})`);
+      const platform = event.data.platform;
+      const pyPlatform = (platform && platform !== "undefined") ? `"${platform}"` : "None";
+      pyScript = self.pyodide.runPython(`port.start(${event.data.sessionId}, ${pyPlatform})`);
       runCycle(null);
       break;
 
@@ -31,14 +33,41 @@ onmessage = (event) => {
 
 function runCycle(payload) {
   console.log("[ProcessingWorker] runCycle " + JSON.stringify(payload));
-  scriptEvent = pyScript.send(payload);
-  self.postMessage({
-    eventType: "runCycleDone",
-    scriptEvent: scriptEvent.toJs({
-      create_proxies: false,
-      dict_converter: Object.fromEntries,
-    }),
-  });
+  try {
+    scriptEvent = pyScript.send(payload);
+    self.postMessage({
+      eventType: "runCycleDone",
+      scriptEvent: scriptEvent.toJs({
+        create_proxies: false,
+        dict_converter: Object.fromEntries,
+      }),
+    });
+  } catch (error) {
+    self.postMessage({
+      eventType: "runCycleDone",
+      scriptEvent: generateErrorMessage(String(error)),
+    });
+  }
+}
+
+function generateErrorMessage(message) {
+  return {
+    __type__: "CommandUIRender",
+    page: {
+      __type__: "PropsUIPageDataSubmission",
+      platform: "error",
+      header: {
+        __type__: "PropsUIHeader",
+        title: { translations: { nl: "Er is iets misgegaan", en: "Something went wrong" } },
+      },
+      body: [
+        {
+          __type__: "PropsUIPageError",
+          message: message,
+        },
+      ],
+    },
+  };
 }
 
 function unwrap(response) {
@@ -57,24 +86,26 @@ function unwrap(response) {
   });
 }
 
-function copyFileToPyFS(file, resolve) {
-  directoryName = `/file-input`;
-  pathStats = self.pyodide.FS.analyzePath(directoryName);
-  if (!pathStats.exists) {
-    self.pyodide.FS.mkdir(directoryName);
-  } else {
-    self.pyodide.FS.unmount(directoryName);
-  }
-  self.pyodide.FS.mount(
-    self.pyodide.FS.filesystems.WORKERFS,
-    {
-      files: [file],
+function createAsyncFileReader(file) {
+  // Use FileReaderSync for synchronous reading in worker
+  const fileReaderSync = new FileReaderSync();
+
+  return {
+    readSlice: (start, end) => {
+      // Synchronous slice reading
+      const blob = file.slice(start, end);
+      return fileReaderSync.readAsArrayBuffer(blob);
     },
-    directoryName
-  );
+    size: file.size,
+    name: file.name,
+  };
+}
+
+function copyFileToPyFS(file, resolve) {
+  const reader = createAsyncFileReader(file);
   resolve({
-    __type__: "PayloadString",
-    value: directoryName + "/" + file.name,
+    __type__: "PayloadFile",
+    value: reader,
   });
 }
 

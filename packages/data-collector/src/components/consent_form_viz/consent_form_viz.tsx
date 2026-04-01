@@ -94,6 +94,19 @@ export const ConsentFormViz = (props: Props): JSX.Element => {
     const body: PropsUITableBody = {
       rows: rows(dataFrame),
     }
+
+    // Translate column headers if provided. The headers dict maps DataFrame
+    // column names to Translatable objects. We resolve them to the current
+    // locale for display, while head.cells retains the raw DataFrame column
+    // names for visualization data lookups.
+    let translatedHeaders: Record<string, string> | undefined
+    if (tableData.headers != null) {
+      translatedHeaders = {}
+      for (const [column, text] of Object.entries(tableData.headers)) {
+        translatedHeaders[column] = Translator.translate(text, props.locale)
+      }
+    }
+
     return {
       __type__: "PropsUITable",
       id,
@@ -106,6 +119,7 @@ export const ConsentFormViz = (props: Props): JSX.Element => {
       originalBody: body,
       deletedRows: [],
       visualizations: tableData.visualizations,
+      headers: translatedHeaders,
       folded: tableData.folded || false,
       deleteOption: tableData.delete_option,
     }

@@ -90,10 +90,5 @@ class ScriptWrapper(Generator):
 
 
 def start(sessionId, platform=None):
-    import inspect
-    sig = inspect.signature(process)
-    if len(sig.parameters) >= 2:
-        script = process(sessionId, platform)
-    else:
-        script = process(sessionId)
+    script = process(sessionId, platform)
     return ScriptWrapper(script, platform=platform)

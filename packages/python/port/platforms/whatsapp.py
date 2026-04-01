@@ -19,8 +19,9 @@ import pandas as pd
 
 import port.api.props as props
 import port.api.d3i_props as d3i_props
+from port.api.d3i_props import ExtractionResult
 import port.helpers.validate as validate
-from port.platforms.flow_builder import FlowBuilder
+from port.helpers.flow_builder import FlowBuilder
 from port.helpers.emoji_pattern import EMOJI_PATTERN
 
 logger = logging.getLogger(__name__)
@@ -245,7 +246,6 @@ def read_chat_file(path_to_chat_file: str) -> list[str]:
             lines = f.readlines()
 
     out = [remove_unwanted_characters(line) for line in lines]
-    out.pop(0) # remove first element containing system message
 
     return out
 
@@ -289,8 +289,7 @@ def parse_chat(path_to_chat: str) -> pd.DataFrame:
     except Exception as e:
         logger.error(e)
 
-    finally:
-        return pd.DataFrame(out)
+    return pd.DataFrame(out)
 
 
 def find_emojis(df):
@@ -385,7 +384,8 @@ def user_statistics_to_df(df, user):
     return pd.DataFrame(statistics, columns=["Description", "Statistic"]) # pyright: ignore
 
 
-def extraction(df: pd.DataFrame) -> list[d3i_props.PropsUIPromptConsentFormTableViz]:
+def extraction(df: pd.DataFrame) -> ExtractionResult:
+    errors = Counter()
     tables = [
         d3i_props.PropsUIPromptConsentFormTableViz(
             id="whatsapp_grou_chat",
@@ -466,11 +466,14 @@ def extraction(df: pd.DataFrame) -> list[d3i_props.PropsUIPromptConsentFormTable
             )
         )
     
-    return [table for table in tables if not table.data_frame.empty]
+    return ExtractionResult(
+        tables=[table for table in tables if not table.data_frame.empty],
+        errors=errors,
+    )
 
 
 class WhatsAppFlow(FlowBuilder):
-    def __init__(self, session_id: int):
+    def __init__(self, session_id: str):
         super().__init__(session_id, "WhatsApp Group Chat")
         
     def validate_file(self, file):

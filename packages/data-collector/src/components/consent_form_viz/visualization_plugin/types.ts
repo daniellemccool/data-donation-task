@@ -9,7 +9,7 @@ import { z } from "zod"
 // duplicating the types here. Currently opting for duplication to avoid complexity
 // (and if input format changes, the plugin would break regardless)
 
-export const zTranslatable = z.record(z.string())
+export const zTranslatable = z.record(z.string(), z.string())
 export type Translatable = z.infer<typeof zTranslatable>
 
 export const zLabel = z.union([zTranslatable, z.string()])
@@ -82,13 +82,11 @@ export const zAggregationValue = z.object({
 })
 export type AggregationValue = z.infer<typeof zAggregationValue>
 
-export const zChartVisualization = zVisualizationProps.merge(
-  z.object({
-    type: zChartVisualizationType,
-    group: zAggregationGroup,
-    values: z.array(zAggregationValue),
-  })
-)
+export const zChartVisualization = zVisualizationProps.extend({
+  type: zChartVisualizationType,
+  group: zAggregationGroup,
+  values: z.array(zAggregationValue),
+})
 export type ChartVisualization = z.infer<typeof zChartVisualization>
 
 // Internal types
@@ -113,15 +111,13 @@ export interface ChartVisualizationData {
 
 // External types (need schema)
 
-export const zTextVisualization = zVisualizationProps.merge(
-  z.object({
-    type: zTextVisualizationType,
-    textColumn: z.string(),
-    valueColumn: z.string().optional(),
-    tokenize: z.boolean().optional(),
-    extract: z.enum(["url_domain"]).optional(),
-  })
-)
+export const zTextVisualization = zVisualizationProps.extend({
+  type: zTextVisualizationType,
+  textColumn: z.string(),
+  valueColumn: z.string().optional(),
+  tokenize: z.boolean().optional(),
+  extract: z.enum(["url_domain"]).optional(),
+})
 export type TextVisualization = z.infer<typeof zTextVisualization>
 
 // Internal types
