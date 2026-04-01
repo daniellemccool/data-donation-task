@@ -92,6 +92,16 @@ Checkout the following articles to get started:
 
    getting_started/index
 
+Architecture
+============
+
+Internals and data-flow documentation:
+
+.. toctree::
+   :maxdepth: 2
+
+   architecture/index
+
 API Reference
 =============
 

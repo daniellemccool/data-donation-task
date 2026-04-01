@@ -3,8 +3,13 @@
 The data donation task (a fork of [Feldspar](https://github.com/eyra/feldspar)) is a front end that guides participants through the data donation steps, used in conjunction with Next.
 Next is a software as a service platform developed by [Eyra](https://eyra.co/) to facilitate scientific research.
 
-This repository is based on the [d3i data donation task](https://github.com/d3i-infra/data-donation-task).
-Please see that repository and their [documentation](https://d3i-infra.github.io/data-donation-task/) for general information.
+For detailed tutorials and API reference, see the [documentation site](https://d3i-infra.github.io/data-donation-task/).
+
+### What's new in v2.0.0
+
+The extraction architecture has been consolidated around **FlowBuilder** — a standard template for per-platform donation flows. All 10 platforms have been updated with bilingual headers, improved error handling, and deterministic file resolution. The bridge layer now supports PayloadFile, structured logging, and async donation responses.
+
+See [CHANGELOG.md](CHANGELOG.md) for the full list of changes and [MIGRATION.md](MIGRATION.md) for upgrading downstream forks.
 
 ## Installation and local testing
 
