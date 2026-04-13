@@ -8,7 +8,8 @@ comments:
       comment: "2"
       date: "2026-03-17 13:24:17"
 links:
-    precedes: []
+    precedes:
+        - "0005"
     succeeds: []
 status: decided
 tags:

@@ -69,7 +69,8 @@ decisions:
             - termination
             - host-integration
         links:
-            precedes: []
+            precedes:
+                - "0005"
             succeeds: []
         comments:
             - author: Danielle McCool
@@ -78,3 +79,20 @@ decisions:
             - author: Danielle McCool
               date: "2026-03-17 13:24:17"
               comment: "2"
+    "0005":
+        adr_id: "0005"
+        title: Display-only pages must auto-resolve the render promise
+        status: decided
+        tags:
+            - end-page
+            - completion
+            - render-promise
+            - host-integration
+        links:
+            precedes: []
+            succeeds:
+                - "0004"
+        comments:
+            - author: Danielle McCool
+              date: "2026-04-13 09:54:44"
+              comment: "1"

@@ -12,6 +12,17 @@ type Props = Weak<PropsUIPageEnd> & ReactFactoryContext;
 
 export const EndPage = (props: Props): JSX.Element => {
   const { title, text } = prepareCopy(props);
+  const { resolve } = props;
+
+  // Auto-resolve: this page has no user interaction, so resolve immediately
+  // to unblock the Python generator. ScriptWrapper will then produce
+  // CommandSystemExit, signaling the host to mark the task complete.
+  // See feldspar/AD0005.
+  React.useEffect(() => {
+    if (resolve) {
+      resolve({ __type__: 'PayloadVoid', value: undefined });
+    }
+  }, [resolve]);
 
   const body: JSX.Element = (
     <>
