@@ -13,25 +13,24 @@ from unittest.mock import MagicMock
 sys.modules['js'] = MagicMock()
 
 from port.main import ScriptWrapper
-from port.api.commands import CommandUIRender, CommandSystemLog
-from port.api.props import PropsUIPageEnd
+from port.api.commands import CommandSystemLog
 
 
 def test_script_command_returned():
     """ScriptWrapper returns the script command directly."""
     def simple_script():
-        yield CommandUIRender(PropsUIPageEnd())
+        yield CommandSystemLog(level="info", message="first")
 
     wrapper = ScriptWrapper(simple_script())
     result = wrapper.send(None)
-    assert result["__type__"] == "CommandUIRender"
+    assert result["__type__"] == "CommandSystemLog"
 
 
 def test_log_command_passes_through():
     """CommandSystemLog yielded by script passes through like any other command."""
     def script_with_log():
         _ = yield CommandSystemLog(level="info", message="test milestone")
-        yield CommandUIRender(PropsUIPageEnd())
+        yield CommandSystemLog(level="info", message="second milestone")
 
     wrapper = ScriptWrapper(script_with_log())
 
@@ -42,7 +41,8 @@ def test_log_command_passes_through():
 
     # PayloadVoid response to log → script receives it, yields next command
     result2 = wrapper.send({"__type__": "PayloadVoid", "value": None})
-    assert result2["__type__"] == "CommandUIRender"
+    assert result2["__type__"] == "CommandSystemLog"
+    assert result2["message"] == "second milestone"
 
 
 def test_error_handler_still_works():

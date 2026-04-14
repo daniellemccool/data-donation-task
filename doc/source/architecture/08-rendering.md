@@ -56,14 +56,12 @@ flowchart TD
     RF["ReactFactory.createPage(page, context)"]
     PF{{"iterate PageFactory[]<br/>first match wins"}}
     DSP["DataSubmissionPageFactory<br/>matches PropsUIPageDataSubmission"]
-    EP["EndPageFactory<br/>matches PropsUIPageEnd"]
     BODY["DataSubmissionPage<br/>iterates body[] items"]
     PROMPT{{"iterate PromptFactory[]<br/>first match wins"}}
     COMPONENT["Matched React component<br/>rendered on screen"]
 
     CMD --> CR --> RE --> RF --> PF
     PF --> DSP
-    PF --> EP
     DSP --> BODY --> PROMPT --> COMPONENT
 ```
 
@@ -73,10 +71,9 @@ flowchart TD
 called, it tries each factory in order. The first one whose `createPage()`
 returns non-null wins.
 
-feldspar always appends two defaults at the end of the list:
+feldspar always appends one default at the end of the list:
 
 - `DataSubmissionPageFactory` — matches `PropsUIPageDataSubmission`
-- `EndPageFactory` — matches `PropsUIPageEnd`
 
 data-collector passes its own `DataSubmissionPageFactory` (with custom prompt
 factories) as the first entry, so it takes priority over feldspar's default.

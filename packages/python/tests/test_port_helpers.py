@@ -8,17 +8,6 @@ import port.helpers.port_helpers as ph
 from port.api.commands import CommandUIRender
 
 
-class TestRenderEndPage:
-    def test_returns_command_ui_render(self):
-        result = ph.render_end_page()
-        assert isinstance(result, CommandUIRender)
-
-    def test_page_type_is_end(self):
-        result = ph.render_end_page()
-        d = result.toDict()
-        assert d["page"]["__type__"] == "PropsUIPageEnd"
-
-
 class TestRenderNoDataPage:
     def test_returns_command_ui_render(self):
         result = ph.render_no_data_page("Instagram")

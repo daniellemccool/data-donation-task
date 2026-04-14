@@ -343,15 +343,6 @@ class PropsUIPageDataSubmission:
         return dict
 
 
-class PropsUIPageEnd:
-    """An ending page to show the user they are done"""
-
-    def toDict(self):
-        dict = {}
-        dict["__type__"] = "PropsUIPageEnd"
-        return dict
-
-
 @dataclass
 class PropsUIPageError:
     """An error page to show when something goes wrong"""

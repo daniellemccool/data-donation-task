@@ -268,11 +268,6 @@ def generate_questionnaire() -> d3i_props.PropsUIPromptQuestionnaire:
     )
 
 
-def render_end_page() -> CommandUIRender:
-    """Render study completion page."""
-    return CommandUIRender(props.PropsUIPageEnd())
-
-
 def render_no_data_page(platform_name: str) -> CommandUIRender:
     """Render 'no relevant data found' with acknowledge button.
 

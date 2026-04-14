@@ -81,12 +81,11 @@ decisions:
               comment: "2"
     "0005":
         adr_id: "0005"
-        title: Display-only pages must auto-resolve the render promise
+        title: Remove EndPage and rely on host completion UI
         status: decided
         tags:
             - end-page
             - completion
-            - render-promise
             - host-integration
         links:
             precedes: []
@@ -94,5 +93,5 @@ decisions:
                 - "0004"
         comments:
             - author: Danielle McCool
-              date: "2026-04-13 09:54:44"
+              date: "2026-04-14 09:00:00"
               comment: "1"
